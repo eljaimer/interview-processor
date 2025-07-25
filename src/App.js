@@ -1,4 +1,3 @@
-```javascript
 import React from 'react';
 import AdvancedInterviewProcessor from './components/AdvancedInterviewProcessor';
 
@@ -77,4 +76,3 @@ export const Badge = ({ children, className = '', variant = 'default' }) => {
     
   );
 };
-```
