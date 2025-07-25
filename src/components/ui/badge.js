@@ -1,4 +1,3 @@
-```javascript
 import React from 'react';
 
 export const Badge = ({ children, className = '', variant = 'default' }) => {
@@ -15,4 +14,3 @@ export const Badge = ({ children, className = '', variant = 'default' }) => {
     
   );
 };
-```
