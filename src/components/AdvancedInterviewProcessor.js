@@ -1,8 +1,8 @@
 import React, { useState, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge';
+import { Progress } from './ui/progress';
 import { Upload, Play, Download, Settings, CheckCircle, AlertTriangle, FileAudio, BarChart3, Wifi, WifiOff, Pause, Trash2, RefreshCw, Globe, Brain, Zap } from 'lucide-react';
 
 const AdvancedInterviewProcessor = () => {
