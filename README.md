@@ -15,7 +15,6 @@ Transform audio interviews into professional business intelligence reports using
 - **Professional Export** - Complete CSV ready for business analysis
 
 ## 🎯 Perfect For
-- **Advantage Group** Central America market research
 - **Retailer-Supplier interviews** analysis
 - **Business intelligence** extraction
 - **Quality assurance** and professional formatting
@@ -32,5 +31,4 @@ Built for production use with professional error handling, scalability, and secu
 
 ---
 
-**Built by Advantage Group for Central America market research operations.**
 ```
