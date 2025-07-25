@@ -7,19 +7,3 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
   background-color: #f8fafc;
 }
-```
-
-### src/App.js
-```javascript
-import React from 'react';
-import AdvancedInterviewProcessor from './components/AdvancedInterviewProcessor';
-
-function App() {
-  return (
-    
-      
-    
-  );
-}
-
-export default App;
