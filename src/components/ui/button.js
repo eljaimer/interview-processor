@@ -1,4 +1,3 @@
-```javascript
 import React from 'react';
 
 export const Button = ({ children, onClick, disabled, className = '', variant = 'default', size = 'default', ...props }) => {
@@ -14,4 +13,3 @@ export const Button = ({ children, onClick, disabled, className = '', variant = 
     
   );
 };
-```
