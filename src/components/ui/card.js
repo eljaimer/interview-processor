@@ -1,4 +1,3 @@
-```javascript
 import React from 'react';
 
 export const Card = ({ children, className = '' }) => (
@@ -18,4 +17,3 @@ export const CardTitle = ({ children, className = '' }) => (
 export const CardContent = ({ children, className = '' }) => (
   {children}
 );
-```
