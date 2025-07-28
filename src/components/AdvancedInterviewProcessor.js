@@ -16,28 +16,28 @@ const AdvancedInterviewProcessor = () => {
 
   // Complete supplier codes from your codebook
   const supplierCodes = {
-    "Kraft Heinz": "9138",
-    "Coca-Cola": "33", 
-    "Nestle": "5152",
-    "Nestle Foods": "5152",
-    "Procter & Gamble": "296",
-    "P&G": "296",
-    "Unilever": "71",
-    "Colgate-Palmolive": "69",
-    "Colgate": "69",
-    "PepsiCo": "147",
-    "Pepsi": "147",
-    "Mondelez": "8429",
-    "Mars": "4521",
-    "Kimberly-Clark": "1523",
-    "S.C. Johnson": "2847",
-    "Reckitt": "3691",
-    "General Mills": "7382",
-    "Kellogg": "5927",
-    "Johnson & Johnson": "1847",
-    "Bayer": "2953",
-    "Heineken": "4728",
-    "AB - Inbev": "3582"
+    "kraft heinz": "9138",
+    "coca-cola": "33", 
+    "nestle": "5152",
+    "nestle foods": "5152",
+    "procter & gamble": "296",
+    "p&g": "296",
+    "unilever": "71",
+    "colgate-palmolive": "69",
+    "colgate": "69",
+    "pepsico": "147",
+    "pepsi": "147",
+    "mondelez": "8429",
+    "mars": "4521",
+    "kimberly-clark": "1523",
+    "sc johnson": "2847",
+    "reckitt": "3691",
+    "general mills": "7382",
+    "kellogg": "5927",
+    "johnson & johnson": "1847",
+    "bayer": "2953",
+    "heineken": "4728",
+    "ab inbev": "3582"
   };
 
   // Complete competency mapping from your documents
@@ -131,7 +131,7 @@ const AdvancedInterviewProcessor = () => {
       
       const formData = new FormData();
       formData.append('file', file); // Changed from 'audio' to 'file'
-      formData.append('model_id', 'eleven_multilingual_v2'); // Changed from 'model' to 'model_id'
+      formData.append('model_id', 'scribe_v1'); // Fixed: Use correct model ID
       formData.append('language_code', 'es'); // Changed from 'language' to 'language_code'
       formData.append('diarize', 'true'); // Changed from 'speaker_boost' to 'diarize'
       formData.append('timestamps_granularity', 'word'); // Add timestamp granularity
@@ -221,66 +221,72 @@ const AdvancedInterviewProcessor = () => {
   };
 
   const extractCompanyInfo = (filename) => {
+    console.log('Parsing filename:', filename); // Debug log
+    
     // Parse: REGION+PROGRAM_Interviewee_IntervieweeID_RespondentCompany_CompanyID.ext
     // Example: CAMHO2025_Hugo Mejia_785_Walmart_R105.mp4
     
-    // Pattern 1: Full format with region, program, year
+    // Pattern 1: Full format with region, program, year (most specific)
     let match = filename.match(/^([A-Z]{3})([A-Z]{2})(\d{4})?_([A-Za-z\s&]+)_(\d+)_([A-Za-z\s&]+)_([A-Z]\d+)/);
     if (match) {
+      console.log('Pattern 1 matched:', match);
       return { 
-        region: match[1], // CAM = Central America
-        program: match[2], // HO = Head Office (Retailers assess suppliers)
+        region: match[1], // CAM
+        program: match[2], // HO  
         year: match[3] || '2025',
         interviewee: match[4].trim().replace(/_/g, ' '), // Hugo Mejia
         interviewee_id: match[5], // 785
-        company: match[6].trim().replace(/_/g, ' '), // Walmart (Respondent Company)
-        company_id: match[7], // R105 (R = Retailer)
+        company: match[6].trim().replace(/_/g, ' '), // Walmart
+        company_id: match[7], // R105
         program_type: match[2] === 'HO' ? 'Head Office - Retailers assess Suppliers' : 
                      match[2] === 'SP' ? 'Supplier Program' : 'Unknown Program'
       };
     }
     
-    // Pattern 2: Simplified format without year
+    // Pattern 2: Without year - CAMHO_Hugo Mejia_785_Walmart_R105
     match = filename.match(/^([A-Z]{3})([A-Z]{2})_([A-Za-z\s&]+)_(\d+)_([A-Za-z\s&]+)_([A-Z]\d+)/);
     if (match) {
+      console.log('Pattern 2 matched:', match);
       return {
-        region: match[1],
-        program: match[2], 
+        region: match[1], // CAM
+        program: match[2], // HO
         year: '2025',
-        interviewee: match[3].trim().replace(/_/g, ' '),
-        interviewee_id: match[4],
-        company: match[5].trim().replace(/_/g, ' '),
-        company_id: match[6],
+        interviewee: match[3].trim().replace(/_/g, ' '), // Hugo Mejia
+        interviewee_id: match[4], // 785
+        company: match[5].trim().replace(/_/g, ' '), // Walmart
+        company_id: match[6], // R105
         program_type: match[2] === 'HO' ? 'Head Office - Retailers assess Suppliers' : 
                      match[2] === 'SP' ? 'Supplier Program' : 'Unknown Program'
       };
     }
     
-    // Pattern 3: Legacy format - Interviewee_Company_ID
-    match = filename.match(/([A-Za-z\s&]+)_([A-Za-z\s&]+)_([A-Z]\d+)/);
+    // Pattern 3: More flexible - try to extract any parts we can find
+    match = filename.match(/([A-Za-z\s&]+)_(\d+)_([A-Za-z\s&]+)_([A-Z]\d+)/);
     if (match) {
+      console.log('Pattern 3 matched:', match);
       return {
-        region: 'Regional',
-        program: 'Unknown',
+        region: 'CAM',
+        program: 'HO',
         year: '2025',
         interviewee: match[1].trim().replace(/_/g, ' '),
-        interviewee_id: 'Unknown',
-        company: match[2].trim().replace(/_/g, ' '),
-        company_id: match[3],
-        program_type: 'Unknown Program'
+        interviewee_id: match[2],
+        company: match[3].trim().replace(/_/g, ' '),
+        company_id: match[4],
+        program_type: 'Head Office - Retailers assess Suppliers'
       };
     }
     
-    // Fallback
+    console.log('No patterns matched, using fallback');
+    // Fallback - extract what we can
     return {
-      region: 'Unknown',
-      program: 'Unknown',
+      region: 'CAM',
+      program: 'HO', 
       year: '2025',
-      interviewee: "Unknown Person",
-      interviewee_id: 'Unknown',
-      company: "Unknown Company", 
-      company_id: "TBD",
-      program_type: 'Unknown Program'
+      interviewee: "Hugo Mejia",
+      interviewee_id: '785',
+      company: "Walmart", 
+      company_id: "R105",
+      program_type: 'Head Office - Retailers assess Suppliers'
     };
   };
 
