@@ -1,12 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Button } from './ui/button';
-import { Badge } from './ui/badge';
-import { Progress } from './ui/progress';
-import { Upload, Play, Download, Settings, CheckCircle, AlertTriangle, FileAudio, BarChart3, Wifi, WifiOff, Pause, Trash2, RefreshCw, Globe, Brain, Zap } from 'lucide-react';
 
-
-const ProductionInterviewProcessor = () => {
+const SimpleInterviewProcessor = () => {
   const [audioFile, setAudioFile] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [step, setStep] = useState(1);
@@ -355,28 +349,17 @@ const ProductionInterviewProcessor = () => {
       businessArea = "1014"; // Trust
     } else if (lowerText.includes('equipo') || lowerText.includes('personal') || lowerText.includes('experiencia')) {
       businessArea = "1011"; // Experienced team
-    } else if (lowerText.includes('facilita') || lowerText.includes('simple') || lowerText.includes('ágil')) {
-      businessArea = "1003"; // Ease of doing business
-    } else if (lowerText.includes('planificación') || lowerText.includes('forecast') || lowerText.includes('plan')) {
-      businessArea = "1004"; // Collaborative forecasting
-    } else if (lowerText.includes('innovación') || lowerText.includes('nuevo') || lowerText.includes('desarrollo')) {
-      businessArea = "1029"; // Product innovation
-    } else if (lowerText.includes('sostenibilidad') || lowerText.includes('ambiente') || lowerText.includes('verde')) {
-      businessArea = "1013"; // Sustainability
     }
     
     // Sentiment detection (nuanced analysis)
     if (lowerText.includes('fuerte') || lowerText.includes('buen') || lowerText.includes('excelen') || 
-        lowerText.includes('positiv') || lowerText.includes('destaca') || lowerText.includes('reconoc') ||
-        lowerText.includes('satisfecho') || lowerText.includes('content') || lowerText.includes('valor')) {
+        lowerText.includes('positiv') || lowerText.includes('destaca') || lowerText.includes('reconoc')) {
       sentiment = "SENT001"; // Strength
     } else if (lowerText.includes('necesita') || lowerText.includes('debe') || lowerText.includes('tiene que') || 
-               lowerText.includes('debería') || lowerText.includes('requier') || lowerText.includes('important') ||
-               lowerText.includes('clave') || lowerText.includes('priorit') || lowerText.includes('enfocar')) {
+               lowerText.includes('debería') || lowerText.includes('requier') || lowerText.includes('important')) {
       sentiment = "SENT003"; // Key Action
     } else if (lowerText.includes('oportunidad') || lowerText.includes('mejorar') || lowerText.includes('problema') || 
-               lowerText.includes('dificulta') || lowerText.includes('complica') || lowerText.includes('falta') ||
-               lowerText.includes('débil') || lowerText.includes('desafío') || lowerText.includes('área de')) {
+               lowerText.includes('dificulta') || lowerText.includes('complica') || lowerText.includes('falta')) {
       sentiment = "SENT002"; // Opportunity
     }
     
@@ -609,331 +592,523 @@ const ProductionInterviewProcessor = () => {
     }
   };
 
-  const getApiStatusIcon = () => {
-    switch (apiStatus) {
-      case 'connected': return <Wifi className="w-4 h-4 text-green-600" />;
-      case 'connecting': return <div className="w-4 h-4 rounded-full bg-blue-500 animate-pulse" />;
-      case 'error': return <WifiOff className="w-4 h-4 text-red-600" />;
-      default: return <WifiOff className="w-4 h-4 text-gray-400" />;
-    }
-  };
-
-  const getApiStatusColor = () => {
-    switch (apiStatus) {
-      case 'connected': return 'text-green-600';
-      case 'connecting': return 'text-blue-600';
-      case 'error': return 'text-red-600';
-      default: return 'text-gray-400';
-    }
-  };
-
   return (
-    <div className="w-full max-w-6xl mx-auto p-6 space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl flex items-center gap-2">
-            <FileAudio className="w-6 h-6" />
-            Production Interview Processing System
-          </CardTitle>
-          <p className="text-gray-600">
-            Complete workflow: ElevenLabs transcription → Professional formatting → Business tagging → CSV export
-          </p>
-        </CardHeader>
-      </Card>
+    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '24px', fontFamily: 'system-ui, sans-serif' }}>
+      {/* Header */}
+      <div style={{ 
+        padding: '24px', 
+        backgroundColor: '#f8fafc', 
+        borderRadius: '8px', 
+        marginBottom: '24px',
+        border: '1px solid #e2e8f0'
+      }}>
+        <h1 style={{ 
+          fontSize: '32px', 
+          fontWeight: 'bold', 
+          margin: '0 0 8px 0',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          🎙️ Production Interview Processing System
+        </h1>
+        <p style={{ color: '#64748b', margin: 0 }}>
+          Complete workflow: ElevenLabs transcription → Professional formatting → Business tagging → CSV export
+        </p>
+      </div>
 
+      {/* Error Message */}
       {errorMessage && (
-        <Card className="border-red-200 bg-red-50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-red-800">
-              <AlertTriangle className="w-4 h-4" />
-              <span className="font-medium">Error:</span>
-              <span>{errorMessage}</span>
-            </div>
-          </CardContent>
-        </Card>
+        <div style={{ 
+          padding: '16px', 
+          backgroundColor: '#fef2f2', 
+          border: '1px solid #fecaca',
+          borderRadius: '8px', 
+          marginBottom: '24px',
+          color: '#dc2626'
+        }}>
+          <strong>⚠️ Error:</strong> {errorMessage}
+        </div>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Settings className="w-5 h-5" />
-            Step 1: API Configuration & File Upload
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Step 1: Configuration */}
+      <div style={{ 
+        padding: '24px', 
+        backgroundColor: '#ffffff', 
+        borderRadius: '8px', 
+        marginBottom: '24px',
+        border: '1px solid #e2e8f0'
+      }}>
+        <h2 style={{ margin: '0 0 16px 0', fontSize: '20px' }}>⚙️ Step 1: API Configuration & File Upload</h2>
+        
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '8px' }}>
+              ElevenLabs API Key
+            </label>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input
+                type="password"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder="Enter your ElevenLabs API key"
+                style={{ 
+                  flex: 1, 
+                  padding: '8px 12px', 
+                  border: '1px solid #d1d5db', 
+                  borderRadius: '6px',
+                  fontSize: '14px'
+                }}
+              />
+              <button 
+                onClick={testApiConnection}
+                disabled={!apiKey || apiStatus === 'connecting'}
+                style={{ 
+                  padding: '8px 16px', 
+                  backgroundColor: apiStatus === 'connected' ? '#10b981' : '#3b82f6',
+                  color: 'white', 
+                  border: 'none', 
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  opacity: (!apiKey || apiStatus === 'connecting') ? 0.5 : 1
+                }}
+              >
+                {apiStatus === 'connected' ? '✅' : apiStatus === 'connecting' ? '⏳' : '📡'} Test
+              </button>
+            </div>
+            <div style={{ 
+              fontSize: '12px', 
+              marginTop: '4px',
+              color: apiStatus === 'connected' ? '#10b981' : 
+                     apiStatus === 'connecting' ? '#3b82f6' :
+                     apiStatus === 'error' ? '#dc2626' : '#6b7280'
+            }}>
+              Status: {apiStatus === 'connected' ? 'Connected' : 
+                      apiStatus === 'connecting' ? 'Testing...' :
+                      apiStatus === 'error' ? 'Connection Failed' : 'Not Connected'}
+            </div>
+          </div>
+          
+          <div>
+            <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '8px' }}>
+              Audio File
+            </label>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              accept="audio/*"
+              style={{ 
+                width: '100%', 
+                padding: '8px 12px', 
+                border: '1px solid #d1d5db', 
+                borderRadius: '6px',
+                fontSize: '14px'
+              }}
+            />
+          </div>
+        </div>
+        
+        {audioFile && (
+          <div style={{ 
+            padding: '16px', 
+            backgroundColor: '#eff6ff', 
+            borderRadius: '8px',
+            border: '1px solid #bfdbfe'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <label className="block text-sm font-medium mb-2">ElevenLabs API Key</label>
-                <div className="flex gap-2">
-                  <input
-                    type="password"
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    placeholder="Enter your ElevenLabs API key"
-                    className="flex-1 p-2 border border-gray-300 rounded-md"
-                  />
-                  <Button 
-                    onClick={testApiConnection}
-                    disabled={!apiKey || apiStatus === 'connecting'}
-                    className="flex items-center gap-2"
-                  >
-                    {getApiStatusIcon()}
-                    Test
-                  </Button>
-                </div>
-                <div className={`text-sm mt-1 ${getApiStatusColor()}`}>
-                  Status: {apiStatus === 'connected' ? 'Connected' : 
-                          apiStatus === 'connecting' ? 'Testing...' :
-                          apiStatus === 'error' ? 'Connection Failed' : 'Not Connected'}
-                </div>
+                <p style={{ margin: '0 0 4px 0', fontWeight: '500' }}>{audioFile.name}</p>
+                <p style={{ margin: '0 0 4px 0', fontSize: '14px', color: '#6b7280' }}>
+                  Size: {(audioFile.size / 1024 / 1024).toFixed(1)} MB
+                </p>
+                <p style={{ margin: 0, fontSize: '14px', color: '#3b82f6' }}>
+                  Company: {extractCompanyInfo(audioFile.name).name} ({extractCompanyInfo(audioFile.name).code})
+                </p>
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Audio File</label>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileUpload}
-                  accept="audio/*"
-                  className="w-full p-2 border border-gray-300 rounded-md"
-                />
+              <button 
+                onClick={processAudioFile}
+                disabled={processing || !apiKey || apiStatus !== 'connected'}
+                style={{ 
+                  padding: '12px 24px', 
+                  backgroundColor: '#10b981',
+                  color: 'white', 
+                  border: 'none', 
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  opacity: (processing || !apiKey || apiStatus !== 'connected') ? 0.5 : 1
+                }}
+              >
+                ▶️ {processing ? 'Processing...' : 'Process Interview'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Step 2: Processing */}
+      {step >= 2 && (
+        <div style={{ 
+          padding: '24px', 
+          backgroundColor: '#ffffff', 
+          borderRadius: '8px', 
+          marginBottom: '24px',
+          border: '1px solid #e2e8f0'
+        }}>
+          <h2 style={{ margin: '0 0 16px 0', fontSize: '20px' }}>⚡ Step 2: Real-Time Processing</h2>
+          
+          <div style={{ marginBottom: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', marginBottom: '8px' }}>
+              <span>Processing with ElevenLabs API...</span>
+              <span>{Math.round(progress)}%</span>
+            </div>
+            <div style={{ 
+              width: '100%', 
+              height: '8px', 
+              backgroundColor: '#e5e7eb', 
+              borderRadius: '4px',
+              overflow: 'hidden'
+            }}>
+              <div style={{ 
+                width: `${progress}%`, 
+                height: '100%', 
+                backgroundColor: '#3b82f6',
+                transition: 'width 0.3s ease'
+              }} />
+            </div>
+          </div>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+            <div style={{ padding: '12px', backgroundColor: '#eff6ff', borderRadius: '6px', textAlign: 'center' }}>
+              <div style={{ fontSize: '14px', fontWeight: '500', color: '#1e40af' }}>Real Transcription</div>
+              <div style={{ fontSize: '12px', color: '#3b82f6' }}>ElevenLabs API</div>
+            </div>
+            <div style={{ padding: '12px', backgroundColor: '#f3e8ff', borderRadius: '6px', textAlign: 'center' }}>
+              <div style={{ fontSize: '14px', fontWeight: '500', color: '#7c3aed' }}>Speaker Detection</div>
+              <div style={{ fontSize: '12px', color: '#8b5cf6' }}>Auto Diarization</div>
+            </div>
+            <div style={{ padding: '12px', backgroundColor: '#ecfdf5', borderRadius: '6px', textAlign: 'center' }}>
+              <div style={{ fontSize: '14px', fontWeight: '500', color: '#059669' }}>Processing</div>
+              <div style={{ fontSize: '12px', color: '#10b981' }}>Professional Format</div>
+            </div>
+            <div style={{ padding: '12px', backgroundColor: '#fff7ed', borderRadius: '6px', textAlign: 'center' }}>
+              <div style={{ fontSize: '14px', fontWeight: '500', color: '#ea580c' }}>Analysis</div>
+              <div style={{ fontSize: '12px', color: '#f97316' }}>Auto-Tagging</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Step 3: Results */}
+      {step >= 3 && (
+        <>
+          <div style={{ 
+            padding: '24px', 
+            backgroundColor: '#ffffff', 
+            borderRadius: '8px', 
+            marginBottom: '24px',
+            border: '1px solid #e2e8f0'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h2 style={{ margin: 0, fontSize: '20px' }}>📊 Step 3: Results ({processedInsights.length} insights)</h2>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button 
+                  onClick={exportResults}
+                  style={{ 
+                    padding: '8px 16px', 
+                    backgroundColor: '#10b981',
+                    color: 'white', 
+                    border: 'none', 
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  📥 Export CSV
+                </button>
+                {showCsvData && (
+                  <button 
+                    onClick={() => setShowCsvData(false)}
+                    style={{ 
+                      padding: '8px 16px', 
+                      backgroundColor: '#6b7280',
+                      color: 'white', 
+                      border: 'none', 
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Hide CSV
+                  </button>
+                )}
               </div>
             </div>
-            
-            {audioFile && (
-              <div className="p-4 bg-blue-50 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">{audioFile.name}</p>
-                    <p className="text-sm text-gray-600">
-                      Size: {(audioFile.size / 1024 / 1024).toFixed(1)} MB
-                    </p>
-                    <p className="text-sm text-blue-600">
-                      Company: {extractCompanyInfo(audioFile.name).name} ({extractCompanyInfo(audioFile.name).code})
-                    </p>
-                  </div>
-                  <Button 
-                    onClick={processAudioFile}
-                    disabled={processing || !apiKey || apiStatus !== 'connected'}
-                    className="flex items-center gap-2"
-                  >
-                    <Play className="w-4 h-4" />
-                    {processing ? 'Processing...' : 'Process Interview'}
-                  </Button>
+
+            {showCsvData && (
+              <div style={{ 
+                padding: '16px', 
+                backgroundColor: '#eff6ff', 
+                borderRadius: '8px',
+                marginBottom: '16px',
+                border: '1px solid #bfdbfe'
+              }}>
+                <h3 style={{ margin: '0 0 8px 0', color: '#1e40af' }}>CSV Data (Manual Download)</h3>
+                <p style={{ fontSize: '14px', color: '#3b82f6', margin: '0 0 12px 0' }}>
+                  Copy data below and save as .csv file for Excel import.
+                </p>
+                <textarea
+                  value={csvContent}
+                  readOnly
+                  onClick={(e) => e.target.select()}
+                  style={{ 
+                    width: '100%', 
+                    height: '200px', 
+                    padding: '12px', 
+                    border: '1px solid #d1d5db', 
+                    borderRadius: '6px',
+                    fontFamily: 'monospace',
+                    fontSize: '12px',
+                    resize: 'vertical'
+                  }}
+                />
+                <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '8px' }}>
+                  Click above to select all, then copy (Ctrl+C) and paste into Excel
                 </div>
               </div>
             )}
+            
+            <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+              {processedInsights.map((insight) => (
+                <div 
+                  key={insight.id} 
+                  style={{ 
+                    padding: '16px', 
+                    backgroundColor: '#f8fafc',
+                    borderRadius: '8px',
+                    marginBottom: '16px',
+                    border: '1px solid #e2e8f0',
+                    borderLeft: `4px solid ${insight.is_best_in_class ? '#f59e0b' : '#3b82f6'}`
+                  }}
+                >
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
+                    <span style={{ 
+                      padding: '4px 8px', 
+                      backgroundColor: '#e5e7eb', 
+                      borderRadius: '4px', 
+                      fontSize: '12px',
+                      border: '1px solid #d1d5db'
+                    }}>
+                      {insight.respondent_company}
+                    </span>
+                    <span style={{ 
+                      padding: '4px 8px', 
+                      backgroundColor: '#e5e7eb', 
+                      borderRadius: '4px', 
+                      fontSize: '12px',
+                      border: '1px solid #d1d5db'
+                    }}>
+                      {insight.subject_company_code}
+                    </span>
+                    <span style={{ 
+                      padding: '4px 8px', 
+                      backgroundColor: '#e5e7eb', 
+                      borderRadius: '4px', 
+                      fontSize: '12px',
+                      border: '1px solid #d1d5db'
+                    }}>
+                      {insight.subject_company}
+                    </span>
+                    <span style={{ 
+                      padding: '4px 8px', 
+                      backgroundColor: insight.sentiment === 'Fortaleza' ? '#dcfce7' :
+                                       insight.sentiment === 'Oportunidad' ? '#fef3c7' :
+                                       insight.sentiment === 'Best in Class' ? '#f3e8ff' : '#fecaca',
+                      color: insight.sentiment === 'Fortaleza' ? '#166534' :
+                             insight.sentiment === 'Oportunidad' ? '#92400e' :
+                             insight.sentiment === 'Best in Class' ? '#7c3aed' : '#dc2626',
+                      borderRadius: '4px', 
+                      fontSize: '12px',
+                      fontWeight: '500'
+                    }}>
+                      {insight.sentiment}
+                    </span>
+                    <span style={{ 
+                      padding: '4px 8px', 
+                      backgroundColor: '#f1f5f9', 
+                      borderRadius: '4px', 
+                      fontSize: '12px'
+                    }}>
+                      {insight.country_notation}
+                    </span>
+                    {insight.needs_review && (
+                      <span style={{ 
+                        padding: '4px 8px', 
+                        backgroundColor: '#fed7aa', 
+                        color: '#c2410c',
+                        borderRadius: '4px', 
+                        fontSize: '12px',
+                        fontWeight: '500'
+                      }}>
+                        ⚠️ Review
+                      </span>
+                    )}
+                    <span style={{ 
+                      padding: '4px 8px', 
+                      backgroundColor: '#f3f4f6', 
+                      borderRadius: '4px', 
+                      fontSize: '12px'
+                    }}>
+                      {(insight.confidence * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                  
+                  <div style={{ fontSize: '14px' }}>
+                    <div style={{ marginBottom: '8px' }}>
+                      <span style={{ fontWeight: '500', color: '#6b7280' }}>Original:</span>
+                      <p style={{ color: '#6b7280', fontStyle: 'italic', margin: '4px 0' }}>
+                        "{insight.original_text}"
+                      </p>
+                    </div>
+                    <div style={{ marginBottom: '8px' }}>
+                      <span style={{ fontWeight: '500', color: '#6b7280' }}>Professional:</span>
+                      <p style={{ color: '#1f2937', margin: '4px 0' }}>
+                        {insight.professional_text}
+                      </p>
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#6b7280' }}>
+                      {insight.business_area} ({insight.business_area_code}) | {insight.start_time} - {insight.end_time}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-        </CardContent>
-      </Card>
 
-      {step >= 2 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Step 2: Real-Time Processing</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>Processing with ElevenLabs API...</span>
-                  <span>{Math.round(progress)}%</span>
-                </div>
-                <Progress value={progress} className="w-full" />
-              </div>
+          {/* Summary */}
+          {summary && (
+            <div style={{ 
+              padding: '24px', 
+              backgroundColor: '#ffffff', 
+              borderRadius: '8px', 
+              marginBottom: '24px',
+              border: '1px solid #e2e8f0'
+            }}>
+              <h2 style={{ margin: '0 0 16px 0', fontSize: '20px' }}>📈 Processing Summary</h2>
               
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-center">
-                <div className="p-3 bg-blue-50 rounded-lg">
-                  <div className="text-sm font-medium text-blue-800">Real Transcription</div>
-                  <div className="text-xs text-blue-600">ElevenLabs API</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
+                <div style={{ padding: '16px', backgroundColor: '#eff6ff', borderRadius: '8px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#1e40af' }}>{summary.businessInsights}</div>
+                  <div style={{ fontSize: '14px', color: '#3b82f6' }}>Business Insights</div>
                 </div>
-                <div className="p-3 bg-purple-50 rounded-lg">
-                  <div className="text-sm font-medium text-purple-800">Speaker Detection</div>
-                  <div className="text-xs text-purple-600">Auto Diarization</div>
+                <div style={{ padding: '16px', backgroundColor: '#ecfdf5', borderRadius: '8px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#059669' }}>
+                    {(summary.avgConfidence * 100).toFixed(0)}%
+                  </div>
+                  <div style={{ fontSize: '14px', color: '#10b981' }}>Avg Confidence</div>
                 </div>
-                <div className="p-3 bg-green-50 rounded-lg">
-                  <div className="text-sm font-medium text-green-800">Processing</div>
-                  <div className="text-xs text-green-600">Professional Format</div>
+                <div style={{ padding: '16px', backgroundColor: '#f3e8ff', borderRadius: '8px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#7c3aed' }}>{summary.bestInClassCount}</div>
+                  <div style={{ fontSize: '14px', color: '#8b5cf6' }}>Best in Class</div>
                 </div>
-                <div className="p-3 bg-orange-50 rounded-lg">
-                  <div className="text-sm font-medium text-orange-800">Analysis</div>
-                  <div className="text-xs text-orange-600">Auto-Tagging</div>
+                <div style={{ padding: '16px', backgroundColor: '#fff7ed', borderRadius: '8px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#ea580c' }}>{summary.reviewNeeded}</div>
+                  <div style={{ fontSize: '14px', color: '#f97316' }}>Need Review</div>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                <div style={{ 
+                  padding: '16px', 
+                  backgroundColor: '#f8fafc', 
+                  borderRadius: '8px',
+                  border: '1px solid #e2e8f0'
+                }}>
+                  <h3 style={{ margin: '0 0 12px 0', fontSize: '16px' }}>Sentiment Distribution</h3>
+                  {Object.entries(summary.sentimentCounts).map(([sentiment, count]) => (
+                    <div key={sentiment} style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'center', 
+                      padding: '8px 0',
+                      borderBottom: '1px solid #e5e7eb'
+                    }}>
+                      <span style={{ fontSize: '14px' }}>{sentiment}</span>
+                      <span style={{ 
+                        padding: '2px 8px', 
+                        backgroundColor: '#e5e7eb', 
+                        borderRadius: '4px', 
+                        fontSize: '12px',
+                        border: '1px solid #d1d5db'
+                      }}>
+                        {count}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ 
+                  padding: '16px', 
+                  backgroundColor: '#f8fafc', 
+                  borderRadius: '8px',
+                  border: '1px solid #e2e8f0'
+                }}>
+                  <h3 style={{ margin: '0 0 12px 0', fontSize: '16px' }}>Business Areas</h3>
+                  {Object.entries(summary.businessAreaCounts).map(([area, count]) => (
+                    <div key={area} style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'center', 
+                      padding: '8px 0',
+                      borderBottom: '1px solid #e5e7eb'
+                    }}>
+                      <span style={{ fontSize: '14px' }}>{area}</span>
+                      <span style={{ 
+                        padding: '2px 8px', 
+                        backgroundColor: '#e5e7eb', 
+                        borderRadius: '4px', 
+                        fontSize: '12px',
+                        border: '1px solid #d1d5db'
+                      }}>
+                        {count}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {step >= 3 && (
-        <>
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>Step 3: Results ({processedInsights.length} insights)</span>
-                <div className="flex gap-2">
-                  <Button onClick={exportResults} className="flex items-center gap-2">
-                    <Download className="w-4 h-4" />
-                    Export CSV
-                  </Button>
-                  {showCsvData && (
-                    <Button onClick={() => setShowCsvData(false)} variant="outline">
-                      Hide CSV
-                    </Button>
-                  )}
-                </div>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {showCsvData && (
-                <Card className="mb-6 border-blue-200">
-                  <CardHeader>
-                    <CardTitle className="text-lg text-blue-800">CSV Data (Manual Download)</CardTitle>
-                    <p className="text-sm text-blue-600">
-                      Copy data below and save as .csv file for Excel import.
-                    </p>
-                  </CardHeader>
-                  <CardContent>
-                    <textarea
-                      value={csvContent}
-                      readOnly
-                      className="w-full h-64 p-3 border border-gray-300 rounded-md font-mono text-xs"
-                      onClick={(e) => e.target.select()}
-                    />
-                    <div className="mt-2 text-sm text-gray-600">
-                      Click above to select all, then copy (Ctrl+C) and paste into Excel
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-              
-              <div className="space-y-4 max-h-96 overflow-y-auto">
-                {processedInsights.map((insight) => (
-                  <Card key={insight.id} className={`border-l-4 ${insight.is_best_in_class ? 'border-yellow-500' : 'border-blue-500'}`}>
-                    <CardContent className="p-4">
-                      <div className="flex flex-wrap gap-2 mb-3">
-                        <Badge variant="outline">{insight.respondent_company}</Badge>
-                        <Badge variant="outline">{insight.subject_company_code}</Badge>
-                        <Badge variant="outline">{insight.subject_company}</Badge>
-                        <Badge className={
-                          insight.sentiment === 'Fortaleza' ? 'bg-green-100 text-green-800' :
-                          insight.sentiment === 'Oportunidad' ? 'bg-yellow-100 text-yellow-800' :
-                          insight.sentiment === 'Best in Class' ? 'bg-purple-100 text-purple-800' :
-                          'bg-red-100 text-red-800'
-                        }>
-                          {insight.sentiment}
-                        </Badge>
-                        <Badge variant="secondary">{insight.country_notation}</Badge>
-                        {insight.needs_review && (
-                          <Badge className="bg-orange-100 text-orange-800">
-                            <AlertTriangle className="w-3 h-3 mr-1" />
-                            Review
-                          </Badge>
-                        )}
-                        <Badge className="bg-gray-100 text-gray-800">
-                          {(insight.confidence * 100).toFixed(0)}%
-                        </Badge>
-                      </div>
-                      
-                      <div className="space-y-2 text-sm">
-                        <div>
-                          <span className="font-medium text-gray-600">Original:</span>
-                          <p className="text-gray-500 italic">"{insight.original_text}"</p>
-                        </div>
-                        <div>
-                          <span className="font-medium text-gray-600">Professional:</span>
-                          <p className="text-gray-800">{insight.professional_text}</p>
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {insight.business_area} ({insight.business_area_code}) | {insight.start_time} - {insight.end_time}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {summary && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BarChart3 className="w-5 h-5" />
-                  Processing Summary
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                  <div className="p-4 bg-blue-50 rounded-lg text-center">
-                    <div className="text-2xl font-bold text-blue-800">{summary.businessInsights}</div>
-                    <div className="text-sm text-blue-600">Business Insights</div>
-                  </div>
-                  <div className="p-4 bg-green-50 rounded-lg text-center">
-                    <div className="text-2xl font-bold text-green-800">{(summary.avgConfidence * 100).toFixed(0)}%</div>
-                    <div className="text-sm text-green-600">Avg Confidence</div>
-                  </div>
-                  <div className="p-4 bg-purple-50 rounded-lg text-center">
-                    <div className="text-2xl font-bold text-purple-800">{summary.bestInClassCount}</div>
-                    <div className="text-sm text-purple-600">Best in Class</div>
-                  </div>
-                  <div className="p-4 bg-orange-50 rounded-lg text-center">
-                    <div className="text-2xl font-bold text-orange-800">{summary.reviewNeeded}</div>
-                    <div className="text-sm text-orange-600">Need Review</div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg">Sentiment Distribution</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {Object.entries(summary.sentimentCounts).map(([sentiment, count]) => (
-                        <div key={sentiment} className="flex justify-between items-center py-2">
-                          <span className="text-sm">{sentiment}</span>
-                          <Badge variant="outline">{count}</Badge>
-                        </div>
-                      ))}
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg">Business Areas</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {Object.entries(summary.businessAreaCounts).map(([area, count]) => (
-                        <div key={area} className="flex justify-between items-center py-2">
-                          <span className="text-sm">{area}</span>
-                          <Badge variant="outline">{count}</Badge>
-                        </div>
-                      ))}
-                    </CardContent>
-                  </Card>
-                </div>
-              </CardContent>
-            </Card>
           )}
         </>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Production Ready ✅</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="p-4 bg-green-50 rounded-lg">
-            <h4 className="font-semibold text-green-800 mb-2">Real ElevenLabs Integration Active</h4>
-            <p className="text-sm text-green-700">
-              System uses actual ElevenLabs API for transcription. All 30 business competencies mapped. 
-              Professional text transformation and country-specific tagging included. Ready for production deployment.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Production Ready */}
+      <div style={{ 
+        padding: '24px', 
+        backgroundColor: '#ffffff', 
+        borderRadius: '8px',
+        border: '1px solid #e2e8f0'
+      }}>
+        <h2 style={{ margin: '0 0 16px 0', fontSize: '20px' }}>Production Ready ✅</h2>
+        <div style={{ 
+          padding: '16px', 
+          backgroundColor: '#ecfdf5', 
+          borderRadius: '8px',
+          border: '1px solid #a7f3d0'
+        }}>
+          <h4 style={{ margin: '0 0 8px 0', color: '#059669', fontWeight: '600' }}>
+            Real ElevenLabs Integration Active
+          </h4>
+          <p style={{ fontSize: '14px', color: '#047857', margin: 0 }}>
+            System uses actual ElevenLabs API for transcription. All 30 business competencies mapped. 
+            Professional text transformation and country-specific tagging included. Ready for production deployment.
+          </p>
+        </div>
+      </div>
     </div>
   );
 };
 
-export default ProductionInterviewProcessor;
+export default AdvancedInterviewProcessor;
