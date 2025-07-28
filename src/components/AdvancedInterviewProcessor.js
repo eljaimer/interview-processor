@@ -170,115 +170,53 @@ const AdvancedInterviewProcessor = () => {
   };
 
   const parseApiResponse = (apiResponse) => {
+    console.log('=== FULL API RESPONSE ===');
+    console.log(JSON.stringify(apiResponse, null, 2));
+    console.log('=== END API RESPONSE ===');
+    
+    // Let's see what structure we actually get
+    if (apiResponse.words) {
+      console.log('Found words array with', apiResponse.words.length, 'words');
+      console.log('First 3 words:', apiResponse.words.slice(0, 3));
+    }
+    
+    if (apiResponse.text) {
+      console.log('Found direct text:', apiResponse.text.substring(0, 200) + '...');
+    }
+    
+    // TEMPORARY: Just create basic segments from the text for now
     const segments = [];
     
-    console.log('API Response structure:', apiResponse);
-    
-    // SIMPLIFIED APPROACH - Focus on speaker changes and natural pauses only
-    if (apiResponse.words && Array.isArray(apiResponse.words)) {
-      const words = apiResponse.words;
+    if (apiResponse.text) {
+      // Split text into reasonable chunks (every ~100 characters or at sentence breaks)
+      const text = apiResponse.text;
+      const chunks = text.match(/.{1,100}(?:\s|$)/g) || [text];
       
-      let currentSegment = {
-        words: [],
-        speaker: null,
-        startTime: 0,
-        endTime: 0
-      };
-      
-      // MUCH SIMPLER LOGIC - Only break on speaker changes and long pauses
-      const PAUSE_THRESHOLD = 2.5; // 2.5 seconds pause
-      const MIN_WORDS_PER_SEGMENT = 10; // At least 10 words
-      
-      for (let i = 0; i < words.length; i++) {
-        const word = words[i];
-        const currentSpeaker = word.speaker_id || 'Speaker_1';
-        const wordStart = word.start || 0;
-        const wordEnd = word.end || wordStart + 0.5;
-        
-        // Only break on:
-        // 1. Speaker change
-        // 2. Long pause (2.5+ seconds)
-        const speakerChanged = currentSegment.speaker && currentSegment.speaker !== currentSpeaker;
-        const longPause = currentSegment.words.length > 0 && 
-                         (wordStart - currentSegment.endTime) > PAUSE_THRESHOLD;
-        
-        if ((speakerChanged || longPause) && currentSegment.words.length >= MIN_WORDS_PER_SEGMENT) {
-          
-          // Finalize current segment
-          const segmentText = currentSegment.words.map(w => w.text).join(' ');
-          const avgConfidence = currentSegment.words.reduce((sum, w) => 
-            sum + Math.exp(w.logprob || -0.5), 0) / currentSegment.words.length;
-          
-          if (segmentText.trim().length > 15) {
-            segments.push({
-              start_time: formatTime(currentSegment.startTime),
-              end_time: formatTime(currentSegment.endTime),
-              speaker: currentSegment.speaker === 'speaker_1' ? 'Speaker_0' : 'Speaker_1',
-              confidence: Math.min(avgConfidence, 1.0),
-              text: segmentText.trim()
-            });
-          }
-          
-          // Start new segment
-          currentSegment = {
-            words: [word],
-            speaker: currentSpeaker,
-            startTime: wordStart,
-            endTime: wordEnd
-          };
-        } else {
-          // Add word to current segment
-          currentSegment.words.push(word);
-          if (currentSegment.words.length === 1) {
-            currentSegment.speaker = currentSpeaker;
-            currentSegment.startTime = wordStart;
-          }
-          currentSegment.endTime = wordEnd;
-        }
-      }
-      
-      // Add final segment
-      if (currentSegment.words.length >= MIN_WORDS_PER_SEGMENT) {
-        const segmentText = currentSegment.words.map(w => w.text).join(' ');
-        const avgConfidence = currentSegment.words.reduce((sum, w) => 
-          sum + Math.exp(w.logprob || -0.5), 0) / currentSegment.words.length;
-        
-        if (segmentText.trim().length > 15) {
+      chunks.forEach((chunk, index) => {
+        if (chunk.trim().length > 10) {
           segments.push({
-            start_time: formatTime(currentSegment.startTime),
-            end_time: formatTime(currentSegment.endTime),
-            speaker: currentSegment.speaker === 'speaker_1' ? 'Speaker_0' : 'Speaker_1',
-            confidence: Math.min(avgConfidence, 1.0),
-            text: segmentText.trim()
+            start_time: formatTime(index * 10),
+            end_time: formatTime((index + 1) * 10),
+            speaker: index % 2 === 0 ? 'Speaker_1' : 'Speaker_0',
+            confidence: 0.85,
+            text: chunk.trim()
           });
         }
-      }
-      
-      console.log(`Created ${segments.length} segments from ${words.length} words`);
-      return segments;
-    }
-    
-    // Fallback for simple text response
-    if (apiResponse.text) {
-      const sentences = apiResponse.text.split(/[.!?]+/).filter(s => s.trim().length > 10);
-      
-      sentences.forEach((sentence, index) => {
-        const startTime = index * 8; 
-        const endTime = (index + 1) * 8;
-        
-        segments.push({
-          start_time: formatTime(startTime),
-          end_time: formatTime(endTime),
-          speaker: index % 2 === 0 ? 'Speaker_0' : 'Speaker_1',
-          confidence: apiResponse.language_probability || 0.75,
-          text: sentence.trim()
-        });
       });
-      
-      return segments;
+    } else if (apiResponse.words && apiResponse.words.length > 0) {
+      // Fallback: Create one segment from all words
+      const allText = apiResponse.words.map(w => w.text).join(' ');
+      segments.push({
+        start_time: "0:00:00.000",
+        end_time: "0:10:00.000", 
+        speaker: "Speaker_1",
+        confidence: 0.85,
+        text: allText
+      });
     }
     
-    throw new Error('Unexpected API response format');
+    console.log(`Created ${segments.length} basic segments for debugging`);
+    return segments;
   };
 
   const formatTime = (seconds) => {
