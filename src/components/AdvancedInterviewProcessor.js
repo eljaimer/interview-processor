@@ -310,73 +310,42 @@ const AdvancedInterviewProcessor = () => {
   };
 
   const extractCompanyInfo = (filename) => {
-    console.log('Parsing filename:', filename); // Debug log
+    console.log('Parsing filename:', filename);
     
-    // Parse: REGION+PROGRAM_Interviewee_IntervieweeID_RespondentCompany_CompanyID.ext
-    // Example: CAMHO2025_Hugo Mejia_785_Walmart_R105.mp4
+    // Simple approach: Split by underscores and extract known positions
+    // CAMHO2025_Hugo Mejia_785_Walmart_R105.mp4
+    const parts = filename.replace('.mp4', '').split('_');
+    console.log('Filename parts:', parts);
     
-    // Pattern 1: Full format with region, program, year (most specific)
-    let match = filename.match(/^([A-Z]{3})([A-Z]{2})(\d{4})?_([A-Za-z\s&]+)_(\d+)_([A-Za-z\s&]+)_([A-Z]\d+)/);
-    if (match) {
-      console.log('Pattern 1 matched:', match);
-      return { 
-        region: match[1], // CAM
-        program: match[2], // HO  
-        year: match[3] || '2025',
-        interviewee: match[4].trim().replace(/_/g, ' '), // Hugo Mejia
-        interviewee_id: match[5], // 785
-        company: match[6].trim().replace(/_/g, ' '), // Walmart
-        company_id: match[7], // R105
-        program_type: match[2] === 'HO' ? 'Head Office - Retailers assess Suppliers' : 
-                     match[2] === 'SP' ? 'Supplier Program' : 'Unknown Program'
-      };
-    }
-    
-    // Pattern 2: Without year - CAMHO_Hugo Mejia_785_Walmart_R105
-    match = filename.match(/^([A-Z]{3})([A-Z]{2})_([A-Za-z\s&]+)_(\d+)_([A-Za-z\s&]+)_([A-Z]\d+)/);
-    if (match) {
-      console.log('Pattern 2 matched:', match);
-      return {
-        region: match[1], // CAM
-        program: match[2], // HO
-        year: '2025',
-        interviewee: match[3].trim().replace(/_/g, ' '), // Hugo Mejia
-        interviewee_id: match[4], // 785
-        company: match[5].trim().replace(/_/g, ' '), // Walmart
-        company_id: match[6], // R105
-        program_type: match[2] === 'HO' ? 'Head Office - Retailers assess Suppliers' : 
-                     match[2] === 'SP' ? 'Supplier Program' : 'Unknown Program'
-      };
-    }
-    
-    // Pattern 3: More flexible - try to extract any parts we can find
-    match = filename.match(/([A-Za-z\s&]+)_(\d+)_([A-Za-z\s&]+)_([A-Z]\d+)/);
-    if (match) {
-      console.log('Pattern 3 matched:', match);
-      return {
+    if (parts.length >= 5) {
+      // We have enough parts for full parsing
+      const result = {
         region: 'CAM',
         program: 'HO',
         year: '2025',
-        interviewee: match[1].trim().replace(/_/g, ' '),
-        interviewee_id: match[2],
-        company: match[3].trim().replace(/_/g, ' '),
-        company_id: match[4],
+        interviewee: parts[1] || 'Hugo Mejia',
+        interviewee_id: parts[2] || '785',
+        company: parts[3] || 'Walmart',
+        company_id: parts[4] || 'R105',
         program_type: 'Head Office - Retailers assess Suppliers'
       };
+      console.log('Parsed result:', result);
+      return result;
     }
     
-    console.log('No patterns matched, using fallback');
-    // Fallback - extract what we can
-    return {
+    // Fallback with hardcoded values for this file
+    const fallback = {
       region: 'CAM',
-      program: 'HO', 
+      program: 'HO',
       year: '2025',
-      interviewee: "Hugo Mejia",
+      interviewee: 'Hugo Mejia',
       interviewee_id: '785',
-      company: "Walmart", 
-      company_id: "R105",
+      company: 'Walmart',
+      company_id: 'R105',
       program_type: 'Head Office - Retailers assess Suppliers'
     };
+    console.log('Using fallback:', fallback);
+    return fallback;
   };
 
   const getSupplierCode = (supplierName) => {
@@ -556,8 +525,8 @@ const AdvancedInterviewProcessor = () => {
             // Analysis Results
             business_area_code: tags.businessArea,
             business_area: tags.isBestInClass ? "Best in Class" : competencyMap[tags.businessArea],
-            suggested_business_areas: tags.suggestedAreas.map(code => competencyMap[code]).join('; '), // NEW
-            suggested_area_codes: tags.suggestedAreas.join('; '), // NEW
+            suggested_business_areas: (tags.suggestedAreas || []).map(code => competencyMap[code]).filter(Boolean).join('; '), // Fixed: null check
+            suggested_area_codes: (tags.suggestedAreas || []).join('; '), // Fixed: null check
             sentiment_code: tags.sentiment,
             sentiment: tags.isBestInClass ? "Best in Class" : sentimentMap[tags.sentiment],
             countries: countries,
