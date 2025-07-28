@@ -124,18 +124,24 @@ const AdvancedInterviewProcessor = () => {
     }
   };
 
-  // Real ElevenLabs transcription - FIXED VERSION
+  // Real ElevenLabs transcription - IMPROVED VERSION
   const transcribeWithElevenLabs = async (file) => {
     try {
       setProgress(10);
       
       const formData = new FormData();
-      formData.append('file', file); // Changed from 'audio' to 'file'
-      formData.append('model_id', 'scribe_v1'); // Fixed: Use correct model ID
-      formData.append('language_code', 'es'); // Changed from 'language' to 'language_code'
-      formData.append('diarize', 'true'); // Changed from 'speaker_boost' to 'diarize'
-      formData.append('timestamps_granularity', 'word'); // Add timestamp granularity
-      formData.append('num_speakers', '2'); // Set expected number of speakers
+      formData.append('file', file);
+      formData.append('model_id', 'scribe_v1');
+      formData.append('language_code', 'es');
+      formData.append('diarize', 'true'); // Enable speaker diarization
+      formData.append('num_speakers', '2'); // Interview = 2 speakers
+      formData.append('timestamps_granularity', 'word'); // Keep word-level for processing
+      formData.append('tag_audio_events', 'false'); // Disable [laughter], [footsteps] etc
+      formData.append('additional_formats', JSON.stringify([
+        {
+          "format": "srt" // Get subtitle format for better segmentation
+        }
+      ]));
 
       setProgress(20);
 
@@ -171,40 +177,123 @@ const AdvancedInterviewProcessor = () => {
   const parseApiResponse = (apiResponse) => {
     const segments = [];
     
-    // Handle ElevenLabs actual response format
+    console.log('API Response structure:', apiResponse);
+    
+    // Handle ElevenLabs actual response format with word-level data
     if (apiResponse.words && Array.isArray(apiResponse.words)) {
-      // Group words into segments of ~15-20 words each
       const words = apiResponse.words;
-      const segmentSize = 20;
       
-      for (let i = 0; i < words.length; i += segmentSize) {
-        const segmentWords = words.slice(i, i + segmentSize);
-        const startTime = segmentWords[0]?.start || 0;
-        const endTime = segmentWords[segmentWords.length - 1]?.end || startTime + 5;
-        const speakerId = segmentWords[0]?.speaker_id || 'Speaker_1';
-        const text = segmentWords.map(w => w.text).join(' ');
-        const avgConfidence = segmentWords.reduce((sum, w) => sum + (Math.exp(w.logprob || -0.5)), 0) / segmentWords.length;
+      // Group words into meaningful segments based on:
+      // 1. Speaker changes
+      // 2. Long pauses (gaps in timestamps)
+      // 3. Sentence boundaries (punctuation)
+      // 4. Maximum segment length for readability
+      
+      let currentSegment = {
+        words: [],
+        speaker: null,
+        startTime: 0,
+        endTime: 0
+      };
+      
+      const PAUSE_THRESHOLD = 2.0; // 2 seconds pause = new segment
+      const MAX_SEGMENT_DURATION = 30; // Max 30 seconds per segment
+      const MIN_WORDS_PER_SEGMENT = 8; // Minimum words for meaningful content
+      
+      for (let i = 0; i < words.length; i++) {
+        const word = words[i];
+        const currentSpeaker = word.speaker_id || 'Speaker_1';
+        const wordStart = word.start || 0;
+        const wordEnd = word.end || wordStart + 0.5;
+        
+        // Start new segment if:
+        // 1. Speaker changed
+        // 2. Long pause detected
+        // 3. Sentence ended and segment is long enough
+        // 4. Current segment too long
+        const speakerChanged = currentSegment.speaker && currentSegment.speaker !== currentSpeaker;
+        const longPause = currentSegment.words.length > 0 && 
+                         (wordStart - currentSegment.endTime) > PAUSE_THRESHOLD;
+        const segmentTooLong = (wordEnd - currentSegment.startTime) > MAX_SEGMENT_DURATION;
+        const sentenceEnded = word.text && /[.!?]$/.test(word.text.trim()) && 
+                             currentSegment.words.length >= MIN_WORDS_PER_SEGMENT;
+        
+        if ((speakerChanged || longPause || segmentTooLong || sentenceEnded) && 
+            currentSegment.words.length > 0) {
+          
+          // Finalize current segment
+          const segmentText = currentSegment.words.map(w => w.text).join(' ');
+          const avgConfidence = currentSegment.words.reduce((sum, w) => 
+            sum + Math.exp(w.logprob || -0.5), 0) / currentSegment.words.length;
+          
+          // Only add segments with meaningful content (not just filler)
+          if (segmentText.trim().length > 10 && 
+              !segmentText.match(/^(eh|mm|ah|hmm|bueno)\s*$/i)) {
+            
+            segments.push({
+              start_time: formatTime(currentSegment.startTime),
+              end_time: formatTime(currentSegment.endTime),
+              speaker: currentSegment.speaker === 'speaker_1' ? 'Speaker_0' : 'Speaker_1',
+              confidence: Math.min(avgConfidence, 1.0),
+              text: segmentText.trim()
+            });
+          }
+          
+          // Start new segment
+          currentSegment = {
+            words: [word],
+            speaker: currentSpeaker,
+            startTime: wordStart,
+            endTime: wordEnd
+          };
+        } else {
+          // Add word to current segment
+          currentSegment.words.push(word);
+          if (currentSegment.words.length === 1) {
+            currentSegment.speaker = currentSpeaker;
+            currentSegment.startTime = wordStart;
+          }
+          currentSegment.endTime = wordEnd;
+        }
+      }
+      
+      // Add final segment
+      if (currentSegment.words.length > 0) {
+        const segmentText = currentSegment.words.map(w => w.text).join(' ');
+        const avgConfidence = currentSegment.words.reduce((sum, w) => 
+          sum + Math.exp(w.logprob || -0.5), 0) / currentSegment.words.length;
+        
+        if (segmentText.trim().length > 10) {
+          segments.push({
+            start_time: formatTime(currentSegment.startTime),
+            end_time: formatTime(currentSegment.endTime),
+            speaker: currentSegment.speaker === 'speaker_1' ? 'Speaker_0' : 'Speaker_1',
+            confidence: Math.min(avgConfidence, 1.0),
+            text: segmentText.trim()
+          });
+        }
+      }
+      
+      console.log(`Created ${segments.length} meaningful segments from ${words.length} words`);
+      return segments;
+    }
+    
+    // Handle simple text response (fallback)
+    if (apiResponse.text) {
+      // Split by sentences for better segmentation
+      const sentences = apiResponse.text.split(/[.!?]+/).filter(s => s.trim().length > 10);
+      
+      sentences.forEach((sentence, index) => {
+        const startTime = index * 10; // Estimate 10 seconds per sentence
+        const endTime = (index + 1) * 10;
         
         segments.push({
           start_time: formatTime(startTime),
           end_time: formatTime(endTime),
-          speaker: speakerId === 'speaker_1' ? 'Speaker_0' : 'Speaker_1', // Map to our format
-          confidence: Math.min(avgConfidence, 1.0),
-          text: text
+          speaker: index % 2 === 0 ? 'Speaker_0' : 'Speaker_1',
+          confidence: apiResponse.language_probability || 0.75,
+          text: sentence.trim()
         });
-      }
-      
-      return segments;
-    }
-    
-    // Handle simple text response
-    if (apiResponse.text) {
-      segments.push({
-        start_time: "0:00:00.000",
-        end_time: "0:01:00.000",
-        speaker: "Speaker_1",
-        confidence: apiResponse.language_probability || 0.75,
-        text: apiResponse.text
       });
       
       return segments;
@@ -467,6 +556,8 @@ const AdvancedInterviewProcessor = () => {
             // Analysis Results
             business_area_code: tags.businessArea,
             business_area: tags.isBestInClass ? "Best in Class" : competencyMap[tags.businessArea],
+            suggested_business_areas: tags.suggestedAreas.map(code => competencyMap[code]).join('; '), // NEW
+            suggested_area_codes: tags.suggestedAreas.join('; '), // NEW
             sentiment_code: tags.sentiment,
             sentiment: tags.isBestInClass ? "Best in Class" : sentimentMap[tags.sentiment],
             countries: countries,
