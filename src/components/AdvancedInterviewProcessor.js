@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 
-const SimpleInterviewProcessor = () => {
+const AdvancedInterviewProcessor = () => {
   const [audioFile, setAudioFile] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [step, setStep] = useState(1);
