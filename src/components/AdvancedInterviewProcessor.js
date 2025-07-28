@@ -174,15 +174,9 @@ const AdvancedInterviewProcessor = () => {
     
     console.log('API Response structure:', apiResponse);
     
-    // Handle ElevenLabs actual response format with word-level data
+    // SIMPLIFIED APPROACH - Focus on speaker changes and natural pauses only
     if (apiResponse.words && Array.isArray(apiResponse.words)) {
       const words = apiResponse.words;
-      
-      // Group words into meaningful segments based on:
-      // 1. Speaker changes
-      // 2. Long pauses (gaps in timestamps)
-      // 3. Sentence boundaries (punctuation)
-      // 4. Maximum segment length for readability
       
       let currentSegment = {
         words: [],
@@ -191,9 +185,9 @@ const AdvancedInterviewProcessor = () => {
         endTime: 0
       };
       
-      const PAUSE_THRESHOLD = 3.0; // 3 seconds pause = new segment (increased)
-      const MAX_SEGMENT_DURATION = 45; // Max 45 seconds per segment (increased)
-      const MIN_WORDS_PER_SEGMENT = 15; // Minimum 15 words for meaningful content (increased)
+      // MUCH SIMPLER LOGIC - Only break on speaker changes and long pauses
+      const PAUSE_THRESHOLD = 2.5; // 2.5 seconds pause
+      const MIN_WORDS_PER_SEGMENT = 10; // At least 10 words
       
       for (let i = 0; i < words.length; i++) {
         const word = words[i];
@@ -201,40 +195,21 @@ const AdvancedInterviewProcessor = () => {
         const wordStart = word.start || 0;
         const wordEnd = word.end || wordStart + 0.5;
         
-        // Start new segment if:
-        // 1. Speaker changed
-        // 2. Long pause detected  
-        // 3. Sentence ended and segment is long enough
-        // 4. Current segment too long
-        // 5. NEW: Interviewer starts new question (topic change)
+        // Only break on:
+        // 1. Speaker change
+        // 2. Long pause (2.5+ seconds)
         const speakerChanged = currentSegment.speaker && currentSegment.speaker !== currentSpeaker;
         const longPause = currentSegment.words.length > 0 && 
                          (wordStart - currentSegment.endTime) > PAUSE_THRESHOLD;
-        const segmentTooLong = (wordEnd - currentSegment.startTime) > MAX_SEGMENT_DURATION;
-        const sentenceEnded = word.text && /[.!?]$/.test(word.text.trim()) && 
-                             currentSegment.words.length >= MIN_WORDS_PER_SEGMENT;
-        const naturalBreak = word.text && 
-                           (/\b(entonces|pero|porque|aunque|sin embargo|además|también|por eso)\b/i.test(word.text)) &&
-                           currentSegment.words.length >= MIN_WORDS_PER_SEGMENT;
         
-        // NEW: Detect interviewer topic changes (new questions)
-        const interviewerTopicChange = currentSpeaker === 'speaker_1' && // Current word is interviewer
-                                     currentSegment.speaker === 'speaker_2' && // Previous segment was interviewee  
-                                     currentSegment.words.length >= MIN_WORDS_PER_SEGMENT && // Segment has enough content
-                                     word.text && /[¿?]/.test(word.text); // Contains question marks
-        
-        if ((speakerChanged || longPause || segmentTooLong || sentenceEnded || naturalBreak || interviewerTopicChange) && 
-            currentSegment.words.length > 0) {
+        if ((speakerChanged || longPause) && currentSegment.words.length >= MIN_WORDS_PER_SEGMENT) {
           
           // Finalize current segment
           const segmentText = currentSegment.words.map(w => w.text).join(' ');
           const avgConfidence = currentSegment.words.reduce((sum, w) => 
             sum + Math.exp(w.logprob || -0.5), 0) / currentSegment.words.length;
           
-          // Only add segments with meaningful content (not just filler)
-          if (segmentText.trim().length > 10 && 
-              !segmentText.match(/^(eh|mm|ah|hmm|bueno)\s*$/i)) {
-            
+          if (segmentText.trim().length > 15) {
             segments.push({
               start_time: formatTime(currentSegment.startTime),
               end_time: formatTime(currentSegment.endTime),
@@ -263,12 +238,12 @@ const AdvancedInterviewProcessor = () => {
       }
       
       // Add final segment
-      if (currentSegment.words.length > 0) {
+      if (currentSegment.words.length >= MIN_WORDS_PER_SEGMENT) {
         const segmentText = currentSegment.words.map(w => w.text).join(' ');
         const avgConfidence = currentSegment.words.reduce((sum, w) => 
           sum + Math.exp(w.logprob || -0.5), 0) / currentSegment.words.length;
         
-        if (segmentText.trim().length > 10) {
+        if (segmentText.trim().length > 15) {
           segments.push({
             start_time: formatTime(currentSegment.startTime),
             end_time: formatTime(currentSegment.endTime),
@@ -279,18 +254,17 @@ const AdvancedInterviewProcessor = () => {
         }
       }
       
-      console.log(`Created ${segments.length} meaningful segments from ${words.length} words`);
+      console.log(`Created ${segments.length} segments from ${words.length} words`);
       return segments;
     }
     
-    // Handle simple text response (fallback)
+    // Fallback for simple text response
     if (apiResponse.text) {
-      // Split by sentences for better segmentation
       const sentences = apiResponse.text.split(/[.!?]+/).filter(s => s.trim().length > 10);
       
       sentences.forEach((sentence, index) => {
-        const startTime = index * 10; // Estimate 10 seconds per sentence
-        const endTime = (index + 1) * 10;
+        const startTime = index * 8; 
+        const endTime = (index + 1) * 8;
         
         segments.push({
           start_time: formatTime(startTime),
@@ -304,7 +278,7 @@ const AdvancedInterviewProcessor = () => {
       return segments;
     }
     
-    throw new Error('Unexpected API response format: ' + JSON.stringify(apiResponse));
+    throw new Error('Unexpected API response format');
   };
 
   const formatTime = (seconds) => {
@@ -384,35 +358,20 @@ const AdvancedInterviewProcessor = () => {
       return text; // Keep interviewer questions as-is
     }
     
-    // Remove filler words and transform to professional language
+    // GENTLE transformation - only remove obvious filler words
     let professional = text
       .replace(/\bbueno,?\s*/gi, '')
       .replace(/\beh,?\s*/gi, '')
       .replace(/\bo sea,?\s*/gi, '')
-      .replace(/\bpues,?\s*/gi, '')
-      .replace(/\bemm,?\s*/gi, '')
-      .replace(/\bahh,?\s*/gi, '')
-      .replace(/\bverdad\?\s*/gi, '') // Remove "¿verdad?"
-      .replace(/\bno sé,?\s*/gi, '')
-      .replace(/\bcomo que\s*/gi, '')
       .replace(/\s+/g, ' ')
       .trim();
 
-    // Transform first person to company perspective - DYNAMIC COMPANY NAME
+    // MINIMAL first-person transformation - only the most obvious cases
     professional = professional
-      .replace(/\byo creo que\b/gi, `En ${companyName} consideramos que`)
-      .replace(/\bcreo que\b/gi, `${companyName} considera que`)
-      .replace(/\byo pienso\b/gi, `En ${companyName} pensamos`)
-      .replace(/\bpienso que\b/gi, `${companyName} piensa que`)
-      .replace(/\byo\b/gi, companyName)
-      .replace(/\bnosotros\b/gi, companyName)
-      .replace(/\bnuestra empresa\b/gi, companyName)
-      .replace(/\bmi criterio\b/gi, `criterio de ${companyName}`)
-      .replace(/\bme gustaría\b/gi, `${companyName} necesita`)
-      .replace(/\btenemos\b/gi, `${companyName} tiene`)
-      .replace(/\bestamos\b/gi, `${companyName} está`);
+      .replace(/\byo creo\b/gi, `${companyName} considera`)
+      .replace(/\bnosotros\b/gi, companyName);
 
-    // Ensure proper capitalization and punctuation
+    // Ensure proper capitalization
     professional = professional.charAt(0).toUpperCase() + professional.slice(1);
     
     if (!professional.endsWith('.') && !professional.endsWith('?') && !professional.endsWith('!')) {
