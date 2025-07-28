@@ -196,9 +196,9 @@ const AdvancedInterviewProcessor = () => {
         endTime: 0
       };
       
-      const PAUSE_THRESHOLD = 2.0; // 2 seconds pause = new segment
-      const MAX_SEGMENT_DURATION = 30; // Max 30 seconds per segment
-      const MIN_WORDS_PER_SEGMENT = 8; // Minimum words for meaningful content
+      const PAUSE_THRESHOLD = 3.0; // 3 seconds pause = new segment (increased)
+      const MAX_SEGMENT_DURATION = 45; // Max 45 seconds per segment (increased)
+      const MIN_WORDS_PER_SEGMENT = 15; // Minimum 15 words for meaningful content (increased)
       
       for (let i = 0; i < words.length; i++) {
         const word = words[i];
@@ -208,17 +208,27 @@ const AdvancedInterviewProcessor = () => {
         
         // Start new segment if:
         // 1. Speaker changed
-        // 2. Long pause detected
+        // 2. Long pause detected  
         // 3. Sentence ended and segment is long enough
         // 4. Current segment too long
+        // 5. NEW: Interviewer starts new question (topic change)
         const speakerChanged = currentSegment.speaker && currentSegment.speaker !== currentSpeaker;
         const longPause = currentSegment.words.length > 0 && 
                          (wordStart - currentSegment.endTime) > PAUSE_THRESHOLD;
         const segmentTooLong = (wordEnd - currentSegment.startTime) > MAX_SEGMENT_DURATION;
         const sentenceEnded = word.text && /[.!?]$/.test(word.text.trim()) && 
                              currentSegment.words.length >= MIN_WORDS_PER_SEGMENT;
+        const naturalBreak = word.text && 
+                           (/\b(entonces|pero|porque|aunque|sin embargo|además|también|por eso)\b/i.test(word.text)) &&
+                           currentSegment.words.length >= MIN_WORDS_PER_SEGMENT;
         
-        if ((speakerChanged || longPause || segmentTooLong || sentenceEnded) && 
+        // NEW: Detect interviewer topic changes (new questions)
+        const interviewerTopicChange = currentSpeaker === 'speaker_1' && // Current word is interviewer
+                                     currentSegment.speaker === 'speaker_2' && // Previous segment was interviewee  
+                                     currentSegment.words.length >= MIN_WORDS_PER_SEGMENT && // Segment has enough content
+                                     word.text && /[¿?]/.test(word.text); // Contains question marks
+        
+        if ((speakerChanged || longPause || segmentTooLong || sentenceEnded || naturalBreak || interviewerTopicChange) && 
             currentSegment.words.length > 0) {
           
           // Finalize current segment
@@ -356,7 +366,7 @@ const AdvancedInterviewProcessor = () => {
     return supplierCodes[lowerName] || "TBD";
   };
 
-  const transformToProfessional = (text, speaker) => {
+  const transformToProfessional = (text, speaker, companyName = "la compañía") => {
     if (speaker === "Speaker_0") {
       return text; // Keep interviewer questions as-is
     }
@@ -369,17 +379,25 @@ const AdvancedInterviewProcessor = () => {
       .replace(/\bpues,?\s*/gi, '')
       .replace(/\bemm,?\s*/gi, '')
       .replace(/\bahh,?\s*/gi, '')
+      .replace(/\bverdad\?\s*/gi, '') // Remove "¿verdad?"
+      .replace(/\bno sé,?\s*/gi, '')
+      .replace(/\bcomo que\s*/gi, '')
       .replace(/\s+/g, ' ')
       .trim();
 
-    // Transform first person to company perspective
+    // Transform first person to company perspective - DYNAMIC COMPANY NAME
     professional = professional
-      .replace(/\byo creo que\b/gi, 'Consideramos que')
-      .replace(/\bcreo que\b/gi, 'consideramos que')
-      .replace(/\byo pienso\b/gi, 'Pensamos')
-      .replace(/\bpienso que\b/gi, 'pensamos que')
-      .replace(/\bnosotros\b/gi, 'la compañía')
-      .replace(/\bnuestra empresa\b/gi, 'nuestra organización');
+      .replace(/\byo creo que\b/gi, `En ${companyName} consideramos que`)
+      .replace(/\bcreo que\b/gi, `${companyName} considera que`)
+      .replace(/\byo pienso\b/gi, `En ${companyName} pensamos`)
+      .replace(/\bpienso que\b/gi, `${companyName} piensa que`)
+      .replace(/\byo\b/gi, companyName)
+      .replace(/\bnosotros\b/gi, companyName)
+      .replace(/\bnuestra empresa\b/gi, companyName)
+      .replace(/\bmi criterio\b/gi, `criterio de ${companyName}`)
+      .replace(/\bme gustaría\b/gi, `${companyName} necesita`)
+      .replace(/\btenemos\b/gi, `${companyName} tiene`)
+      .replace(/\bestamos\b/gi, `${companyName} está`);
 
     // Ensure proper capitalization and punctuation
     professional = professional.charAt(0).toUpperCase() + professional.slice(1);
@@ -483,19 +501,44 @@ const AdvancedInterviewProcessor = () => {
         const tags = autoTag(segment.text);
         
         if (!tags.isInterviewer) {
-          const professionalText = transformToProfessional(segment.text, segment.speaker);
+          const professionalText = transformToProfessional(segment.text, segment.speaker, companyInfo.company);
           const countries = detectCountries(segment.text);
           
-          // Detect subject company from text
+          // Detect subject company from text - IMPROVED
           let subjectCompany = "Unknown";
           let subjectCompanyCode = "TBD";
           
-          Object.keys(supplierCodes).forEach(supplier => {
-            if (segment.text.toLowerCase().includes(supplier)) {
-              subjectCompany = supplier.charAt(0).toUpperCase() + supplier.slice(1);
-              subjectCompanyCode = supplierCodes[supplier];
-            }
-          });
+          // Enhanced company detection
+          const lowerSegmentText = segment.text.toLowerCase();
+          
+          if (lowerSegmentText.includes('kraft') || lowerSegmentText.includes('heinz')) {
+            subjectCompany = "Kraft Heinz";
+            subjectCompanyCode = "9138";
+          } else if (lowerSegmentText.includes('coca-cola') || lowerSegmentText.includes('coca cola')) {
+            subjectCompany = "Coca-Cola";
+            subjectCompanyCode = "33";
+          } else if (lowerSegmentText.includes('nestlé') || lowerSegmentText.includes('nestle')) {
+            subjectCompany = "Nestlé";
+            subjectCompanyCode = "5152";
+          } else if (lowerSegmentText.includes('procter') || lowerSegmentText.includes('p&g')) {
+            subjectCompany = "Procter & Gamble";
+            subjectCompanyCode = "296";
+          } else if (lowerSegmentText.includes('unilever')) {
+            subjectCompany = "Unilever";
+            subjectCompanyCode = "71";
+          } else if (lowerSegmentText.includes('colgate')) {
+            subjectCompany = "Colgate-Palmolive";
+            subjectCompanyCode = "69";
+          } else if (lowerSegmentText.includes('pepsi')) {
+            subjectCompany = "PepsiCo";
+            subjectCompanyCode = "147";
+          } else if (lowerSegmentText.includes('lactalis')) {
+            subjectCompany = "Lactalis";
+            subjectCompanyCode = "DIST001"; // Distributor code
+          } else if (lowerSegmentText.includes('american foods')) {
+            subjectCompany = "American Foods";
+            subjectCompanyCode = "DIST002"; // Distributor code
+          }
           
           insights.push({
             id: index,
