@@ -16,28 +16,28 @@ const AdvancedInterviewProcessor = () => {
 
   // Complete supplier codes from your codebook
   const supplierCodes = {
-    "kraft heinz": "9138",
-    "coca-cola": "33", 
-    "nestle": "5152",
-    "nestle foods": "5152",
-    "procter & gamble": "296",
-    "p&g": "296",
-    "unilever": "71",
-    "colgate-palmolive": "69",
-    "colgate": "69",
-    "pepsico": "147",
-    "pepsi": "147",
-    "mondelez": "8429",
-    "mars": "4521",
-    "kimberly-clark": "1523",
-    "sc johnson": "2847",
-    "reckitt": "3691",
-    "general mills": "7382",
-    "kellogg": "5927",
-    "johnson & johnson": "1847",
-    "bayer": "2953",
-    "heineken": "4728",
-    "ab inbev": "3582"
+    "Kraft Heinz": "9138",
+    "Coca-Cola": "33", 
+    "Nestle": "5152",
+    "Nestle Foods": "5152",
+    "Procter & Gamble": "296",
+    "P&G": "296",
+    "Unilever": "71",
+    "Colgate-Palmolive": "69",
+    "Colgate": "69",
+    "PepsiCo": "147",
+    "Pepsi": "147",
+    "Mondelez": "8429",
+    "Mars": "4521",
+    "Kimberly-Clark": "1523",
+    "S.C. Johnson": "2847",
+    "Reckitt": "3691",
+    "General Mills": "7382",
+    "Kellogg": "5927",
+    "Johnson & Johnson": "1847",
+    "Bayer": "2953",
+    "Heineken": "4728",
+    "AB - Inbev": "3582"
   };
 
   // Complete competency mapping from your documents
@@ -124,16 +124,18 @@ const AdvancedInterviewProcessor = () => {
     }
   };
 
-  // Real ElevenLabs transcription - PRODUCTION VERSION
+  // Real ElevenLabs transcription - FIXED VERSION
   const transcribeWithElevenLabs = async (file) => {
     try {
       setProgress(10);
       
       const formData = new FormData();
-      formData.append('audio', file);
-      formData.append('model', 'eleven_multilingual_v2');
-      formData.append('language', 'es');
-      formData.append('speaker_boost', 'true');
+      formData.append('file', file); // Changed from 'audio' to 'file'
+      formData.append('model_id', 'eleven_multilingual_v2'); // Changed from 'model' to 'model_id'
+      formData.append('language_code', 'es'); // Changed from 'language' to 'language_code'
+      formData.append('diarize', 'true'); // Changed from 'speaker_boost' to 'diarize'
+      formData.append('timestamps_granularity', 'word'); // Add timestamp granularity
+      formData.append('num_speakers', '2'); // Set expected number of speakers
 
       setProgress(20);
 
@@ -169,51 +171,46 @@ const AdvancedInterviewProcessor = () => {
   const parseApiResponse = (apiResponse) => {
     const segments = [];
     
-    // Handle ElevenLabs response format - check for segments array
-    if (apiResponse.segments && Array.isArray(apiResponse.segments)) {
-      return apiResponse.segments.map(segment => ({
-        start_time: formatTime(segment.start_time || 0),
-        end_time: formatTime(segment.end_time || segment.start_time + 5),
-        speaker: segment.speaker || 'Speaker_1',
-        confidence: segment.confidence || 0.85,
-        text: segment.text || ''
-      }));
-    }
-    
-    // Handle simple transcript format
-    if (apiResponse.transcript) {
-      const transcript = apiResponse.transcript;
-      const words = transcript.split(' ');
+    // Handle ElevenLabs actual response format
+    if (apiResponse.words && Array.isArray(apiResponse.words)) {
+      // Group words into segments of ~15-20 words each
+      const words = apiResponse.words;
+      const segmentSize = 20;
       
-      // Split into segments of ~20 words each
-      for (let i = 0; i < words.length; i += 20) {
-        const segmentWords = words.slice(i, i + 20);
-        const startTime = Math.floor((i / 20) * 15);
-        const endTime = Math.floor(((i + 20) / 20) * 15);
-        const speakerId = (Math.floor(i / 40) % 2 === 0) ? 'Speaker_0' : 'Speaker_1';
+      for (let i = 0; i < words.length; i += segmentSize) {
+        const segmentWords = words.slice(i, i + segmentSize);
+        const startTime = segmentWords[0]?.start || 0;
+        const endTime = segmentWords[segmentWords.length - 1]?.end || startTime + 5;
+        const speakerId = segmentWords[0]?.speaker_id || 'Speaker_1';
+        const text = segmentWords.map(w => w.text).join(' ');
+        const avgConfidence = segmentWords.reduce((sum, w) => sum + (Math.exp(w.logprob || -0.5)), 0) / segmentWords.length;
         
         segments.push({
           start_time: formatTime(startTime),
           end_time: formatTime(endTime),
-          speaker: speakerId,
-          confidence: apiResponse.confidence || 0.85,
-          text: segmentWords.join(' ')
+          speaker: speakerId === 'speaker_1' ? 'Speaker_0' : 'Speaker_1', // Map to our format
+          confidence: Math.min(avgConfidence, 1.0),
+          text: text
         });
       }
-    } else if (apiResponse.text) {
-      // Single text response
+      
+      return segments;
+    }
+    
+    // Handle simple text response
+    if (apiResponse.text) {
       segments.push({
         start_time: "0:00:00.000",
         end_time: "0:01:00.000",
         speaker: "Speaker_1",
-        confidence: apiResponse.confidence || 0.75,
+        confidence: apiResponse.language_probability || 0.75,
         text: apiResponse.text
       });
-    } else {
-      throw new Error('Unexpected API response format');
+      
+      return segments;
     }
     
-    return segments;
+    throw new Error('Unexpected API response format: ' + JSON.stringify(apiResponse));
   };
 
   const formatTime = (seconds) => {
@@ -224,47 +221,66 @@ const AdvancedInterviewProcessor = () => {
   };
 
   const extractCompanyInfo = (filename) => {
-    // Try multiple filename patterns for your workflow
+    // Parse: REGION+PROGRAM_Interviewee_IntervieweeID_RespondentCompany_CompanyID.ext
+    // Example: CAMHO2025_Hugo Mejia_785_Walmart_R105.mp4
     
-    // Pattern 1: COUNTRY_Company_Code_Retailer_ID.ext
-    let match = filename.match(/^([A-Z]{2,4})\d*_([A-Za-z\s&]+)_(\d+)_([A-Za-z\s]+)_([A-Z]\d+)/);
+    // Pattern 1: Full format with region, program, year
+    let match = filename.match(/^([A-Z]{3})([A-Z]{2})(\d{4})?_([A-Za-z\s&]+)_(\d+)_([A-Za-z\s&]+)_([A-Z]\d+)/);
     if (match) {
       return { 
-        name: match[2].trim().replace(/_/g, ' '), 
-        code: match[5],
-        country: match[1],
-        retailer: match[4].trim().replace(/_/g, ' ')
+        region: match[1], // CAM = Central America
+        program: match[2], // HO = Head Office (Retailers assess suppliers)
+        year: match[3] || '2025',
+        interviewee: match[4].trim().replace(/_/g, ' '), // Hugo Mejia
+        interviewee_id: match[5], // 785
+        company: match[6].trim().replace(/_/g, ' '), // Walmart (Respondent Company)
+        company_id: match[7], // R105 (R = Retailer)
+        program_type: match[2] === 'HO' ? 'Head Office - Retailers assess Suppliers' : 
+                     match[2] === 'SP' ? 'Supplier Program' : 'Unknown Program'
       };
     }
     
-    // Pattern 2: Simple Company_Retailer_Code format  
-    match = filename.match(/([A-Za-z\s&]+)_([A-Za-z\s]+)_([R]\d+)/);
+    // Pattern 2: Simplified format without year
+    match = filename.match(/^([A-Z]{3})([A-Z]{2})_([A-Za-z\s&]+)_(\d+)_([A-Za-z\s&]+)_([A-Z]\d+)/);
     if (match) {
-      return { 
-        name: match[1].trim().replace(/_/g, ' '), 
-        code: match[3],
-        retailer: match[2].trim().replace(/_/g, ' '),
-        country: 'Regional'
+      return {
+        region: match[1],
+        program: match[2], 
+        year: '2025',
+        interviewee: match[3].trim().replace(/_/g, ' '),
+        interviewee_id: match[4],
+        company: match[5].trim().replace(/_/g, ' '),
+        company_id: match[6],
+        program_type: match[2] === 'HO' ? 'Head Office - Retailers assess Suppliers' : 
+                     match[2] === 'SP' ? 'Supplier Program' : 'Unknown Program'
       };
     }
     
-    // Pattern 3: Extract from path-like structure
-    match = filename.match(/.*_([A-Za-z\s&]+)_(\d+)_/);
+    // Pattern 3: Legacy format - Interviewee_Company_ID
+    match = filename.match(/([A-Za-z\s&]+)_([A-Za-z\s&]+)_([A-Z]\d+)/);
     if (match) {
-      return { 
-        name: match[1].trim().replace(/_/g, ' '), 
-        code: match[2],
-        country: 'Regional',
-        retailer: 'Unknown'
+      return {
+        region: 'Regional',
+        program: 'Unknown',
+        year: '2025',
+        interviewee: match[1].trim().replace(/_/g, ' '),
+        interviewee_id: 'Unknown',
+        company: match[2].trim().replace(/_/g, ' '),
+        company_id: match[3],
+        program_type: 'Unknown Program'
       };
     }
     
     // Fallback
-    return { 
-      name: "Unknown Company", 
-      code: "TBD",
-      country: 'Regional',
-      retailer: 'Unknown'
+    return {
+      region: 'Unknown',
+      program: 'Unknown',
+      year: '2025',
+      interviewee: "Unknown Person",
+      interviewee_id: 'Unknown',
+      company: "Unknown Company", 
+      company_id: "TBD",
+      program_type: 'Unknown Program'
     };
   };
 
@@ -425,10 +441,24 @@ const AdvancedInterviewProcessor = () => {
             confidence: segment.confidence,
             original_text: segment.text,
             professional_text: professionalText,
-            respondent_company: `${companyInfo.name} (${companyInfo.code})`,
-            respondent_company_code: companyInfo.code,
+            
+            // Respondent Information (who gave the interview)
+            respondent_company: companyInfo.company, // Walmart
+            respondent_company_id: companyInfo.company_id, // R105
+            interviewee_name: companyInfo.interviewee, // Hugo Mejia
+            interviewee_id: companyInfo.interviewee_id, // 785
+            
+            // Study Information
+            region: companyInfo.region, // CAM
+            program: companyInfo.program, // HO
+            program_type: companyInfo.program_type, // Head Office - Retailers assess Suppliers
+            year: companyInfo.year, // 2025
+            
+            // Subject Information (what/who is being evaluated)
             subject_company_code: tags.isBestInClass ? "BIC001" : subjectCompanyCode,
             subject_company: tags.isBestInClass ? "N/A - Best in Class" : subjectCompany,
+            
+            // Analysis Results
             business_area_code: tags.businessArea,
             business_area: tags.isBestInClass ? "Best in Class" : competencyMap[tags.businessArea],
             sentiment_code: tags.sentiment,
@@ -436,9 +466,7 @@ const AdvancedInterviewProcessor = () => {
             countries: countries,
             country_notation: countries.join('; '),
             is_best_in_class: tags.isBestInClass || false,
-            needs_review: segment.confidence < 0.8,
-            interviewer_type: 'Retailer',
-            retailer_name: companyInfo.retailer || 'Unknown'
+            needs_review: segment.confidence < 0.8
           });
         }
       });
