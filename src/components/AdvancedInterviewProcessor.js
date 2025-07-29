@@ -129,7 +129,8 @@ const AdvancedInterviewProcessor = () => {
       formData.append('language', 'es'); // Spanish
       formData.append('speaker_boost', 'true');
       formData.append('output_format', 'json');
-      formData.append('word_timestamps', 'true');
+      // Remove word_timestamps as it might be causing issues
+      // formData.append('word_timestamps', 'true');
 
       setProgress(20);
 
@@ -158,23 +159,19 @@ const AdvancedInterviewProcessor = () => {
       }
 
     } catch (error) {
-      // Fallback with realistic mock data for testing
+      // Enhanced fallback with realistic multi-segment mock data
       if (error.message.includes('Failed to fetch') || error.message.includes('API error')) {
         console.log('Using enhanced mock transcription for testing');
         
         setProgress(60);
         
-        // Realistic mock response based on your actual use case
+        // More realistic mock response with multiple speakers and segments
         const mockApiResponse = {
           language_code: "spa",
           language_probability: 0.95,
-          text: "CAM HO 2025, Hugo Mejía, Walmart R105. El que fue usted quien me proporcionó eso descuentos. Hemos buscado sesiones con ellos para que bueno, mira, específicamente su un cliente que no se si bueno, y especialmente en Guatemala y El Salvador. Pueden ser, de pronto puede ser, puede ser menos como en esta parte de consumo. Veo que su relacionamiento viene mejorando con la forma en que ustedes proveed. Sí, yo creo que detrás de lo que te digo, el cambio que tuvimos nosotros de Cam. Háblame, por favor, del formato amarillo de Almacenes Éxito. Los evaluaste cuatro. Listo, no te preocupes. Mira, si pusimos cuatro de cinco, normalmente creo que hemos. De más a menos. Entonces sí, y básicamente como que ese punto que no les dimos fue muy detrás.",
-          words: [
-            // Simulated word array with speaker IDs and timestamps
-            {text: 'CAM', start: 1.579, end: 1.959, type: 'word', speaker_id: 'speaker_1'},
-            {text: 'HO', start: 1.979, end: 2.399, type: 'word', speaker_id: 'speaker_1'},
-            // ... continue with realistic data
-          ]
+          text: "Buenos días Hugo, gracias por participar en esta entrevista de Advantage. Me gustaría preguntarle sobre Kraft Heinz como proveedor. ¿Cómo evalúa usted el desempeño en la parte de logística? En el caso de Kraft Heinz es bastante complejo porque tienen varios distribuidores manejando diferentes categorías de productos, especialmente en Guatemala y El Salvador. La distribución no es consistente y necesitan mejorar la comunicación con nosotros en Walmart. ¿Y alguna fortaleza que usted vea en Kraft Heinz? Sí, la marca es muy fuerte, tienen buen reconocimiento con los consumidores, pero necesitan mejorar mucho en la distribución y comunicación. Sus productos tienen buena rotación pero el servicio al cliente podría ser mejor. ¿Qué proveedor consideraría usted como ideal o best in class? El proveedor ideal es el que mantiene comunicación constante, tiene abasto consistente y entiende nuestras necesidades específicas de cada país. Un proveedor que no solo vende productos sino que realmente entiende el negocio del retail.",
+          // Mock words array - in real API this would be much longer
+          words: []
         };
         
         setRawApiResponse(mockApiResponse);
