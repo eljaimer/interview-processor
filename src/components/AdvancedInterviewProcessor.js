@@ -866,7 +866,7 @@ const AdvancedInterviewProcessor = () => {
     return result;
   };
 
-  // Professional transformation for interviewee responses only (UNCHANGED)
+  // ENHANCED Professional transformation for interviewee responses
   const transformToProfessional = (text, speaker, company) => {
     // Only transform interviewee responses (Speaker_1)
     if (speaker === "Speaker_0") {
@@ -885,80 +885,221 @@ const AdvancedInterviewProcessor = () => {
       if (applicableRules.length > 0) {
         console.log(`🧠 Applying ${applicableRules.length} ML transformation rules`);
         applicableRules.forEach(rule => {
-          // Apply learned transformation patterns
           transformed = applyTransformationRule(transformed, rule);
         });
       }
     }
     
-    // Enhanced filler word removal
+    // ENHANCED filler word removal (30+ patterns)
     const fillerPatterns = [
+      // Basic fillers
       /\b(eh|ah|um|mm|hmm|este|esto|pues|bueno|o sea|como que|digamos|verdad|no sé|sabes|entonces|así|como|tipo)\b/gi,
-      /\b(y y|que que|es es|la la|el el|de de|en en|con con|por por|para para)\b/gi,
-      /\b(ehhh|ahhh|ummm|mmmm|eeee|aaaa)\b/gi,
+      // Repetitive words
+      /\b(y y|que que|es es|la la|el el|de de|en en|con con|por por|para para|se se|me me|te te)\b/gi,
+      // Extended sounds
+      /\b(ehhh|ahhh|ummm|mmmm|eeee|aaaa|yyyy|siii|nooo)\b/gi,
+      // Hesitation patterns
+      /\b(este\s+este|bueno\s+bueno|pues\s+pues|como\s+como|que\s+que)\b/gi,
+      // Punctuation artifacts
       /\s*\.\.\.\s*/g,
       /\s*,\s*,\s*/g,
-      /\s{2,}/g
+      /\s*;\s*;\s*/g,
+      // Multiple spaces
+      /\s{2,}/g,
+      // Incomplete thoughts
+      /\b(o sea que|es decir que|como te digo|como te comento|la verdad es que)\b/gi
     ];
     
     fillerPatterns.forEach(pattern => {
       transformed = transformed.replace(pattern, ' ');
     });
     
-    // Context-aware transformations based on business context
-    const businessTransformations = [
-      // First person to company perspective
+    // ENHANCED first person to company perspective transformations
+    const companyPerspectiveTransformations = [
+      // Basic first person
       { pattern: /\byo creo que\b/gi, replacement: `${company} considera que` },
       { pattern: /\byo pienso que\b/gi, replacement: `${company} evalúa que` },
+      { pattern: /\byo siento que\b/gi, replacement: `${company} percibe que` },
+      { pattern: /\byo veo que\b/gi, replacement: `${company} observa que` },
+      { pattern: /\byo diría que\b/gi, replacement: `${company} indica que` },
+      { pattern: /\byo opino que\b/gi, replacement: `${company} considera que` },
+      
+      // Plural first person
       { pattern: /\bnosotros creemos\b/gi, replacement: `${company} considera` },
       { pattern: /\bnosotros pensamos\b/gi, replacement: `${company} evalúa` },
+      { pattern: /\bnosotros vemos\b/gi, replacement: `${company} observa` },
+      { pattern: /\bnosotros sentimos\b/gi, replacement: `${company} percibe` },
+      
+      // Opinion expressions
       { pattern: /\ben mi opinión\b/gi, replacement: `Desde la perspectiva de ${company}` },
-      { pattern: /\byo diría que\b/gi, replacement: `${company} indica que` },
+      { pattern: /\ba mi parecer\b/gi, replacement: `En la evaluación de ${company}` },
+      { pattern: /\bdesde mi punto de vista\b/gi, replacement: `Desde la perspectiva de ${company}` },
+      { pattern: /\bpara mí\b/gi, replacement: `Para ${company}` },
       
-      // Professional language upgrades
-      { pattern: /\bbueno\b/gi, replacement: 'satisfactorio' },
-      { pattern: /\bmuy bueno\b/gi, replacement: 'excelente' },
-      { pattern: /\bmalo\b/gi, replacement: 'deficiente' },
-      { pattern: /\bmuy malo\b/gi, replacement: 'crítico' },
-      { pattern: /\bproblemas\b/gi, replacement: 'oportunidades de mejora' },
-      { pattern: /\bno funciona\b/gi, replacement: 'requiere optimización' },
-      
-      // Business terminology
-      { pattern: /\bvendedores\b/gi, replacement: 'equipo comercial' },
-      { pattern: /\bclientes\b/gi, replacement: 'socios comerciales' },
-      { pattern: /\bcomprar\b/gi, replacement: 'adquirir' },
-      { pattern: /\bvender\b/gi, replacement: 'comercializar' },
-      { pattern: /\bdinero\b/gi, replacement: 'inversión' },
-      { pattern: /\bcaro\b/gi, replacement: 'de alto valor' },
-      { pattern: /\bbarato\b/gi, replacement: 'competitivo en precio' }
+      // Experience expressions
+      { pattern: /\ben mi experiencia\b/gi, replacement: `En la experiencia de ${company}` },
+      { pattern: /\bhe visto que\b/gi, replacement: `${company} ha observado que` },
+      { pattern: /\bhemos notado que\b/gi, replacement: `${company} ha identificado que` }
     ];
     
-    // Apply business transformations
-    businessTransformations.forEach(({ pattern, replacement }) => {
+    // Apply company perspective transformations
+    companyPerspectiveTransformations.forEach(({ pattern, replacement }) => {
       transformed = transformed.replace(pattern, replacement);
     });
     
-    // Grammar and sentence structure improvements
+    // ENHANCED professional language upgrades
+    const professionalLanguageUpgrades = [
+      // Quality descriptors
+      { pattern: /\bmuy bueno\b/gi, replacement: 'excelente' },
+      { pattern: /\bbueno\b/gi, replacement: 'satisfactorio' },
+      { pattern: /\bregular\b/gi, replacement: 'aceptable' },
+      { pattern: /\bmalo\b/gi, replacement: 'deficiente' },
+      { pattern: /\bmuy malo\b/gi, replacement: 'crítico' },
+      { pattern: /\bpésimo\b/gi, replacement: 'inaceptable' },
+      
+      // Problem/solution language
+      { pattern: /\bproblemas\b/gi, replacement: 'oportunidades de mejora' },
+      { pattern: /\bdificultades\b/gi, replacement: 'desafíos' },
+      { pattern: /\bfallas\b/gi, replacement: 'áreas de optimización' },
+      { pattern: /\berrores\b/gi, replacement: 'inconsistencias' },
+      { pattern: /\bno funciona\b/gi, replacement: 'requiere optimización' },
+      { pattern: /\bno sirve\b/gi, replacement: 'no cumple con los estándares' },
+      
+      // Performance language
+      { pattern: /\bfunciona bien\b/gi, replacement: 'opera eficientemente' },
+      { pattern: /\btrabaja bien\b/gi, replacement: 'desempeña efectivamente' },
+      { pattern: /\bhace bien su trabajo\b/gi, replacement: 'cumple satisfactoriamente con sus funciones' },
+      
+      // Relationship language
+      { pattern: /\bse lleva bien\b/gi, replacement: 'mantiene una relación profesional positiva' },
+      { pattern: /\bcolabora bien\b/gi, replacement: 'demuestra excelente colaboración' },
+      { pattern: /\bse comunica bien\b/gi, replacement: 'mantiene comunicación efectiva' }
+    ];
+    
+    // Apply professional language upgrades
+    professionalLanguageUpgrades.forEach(({ pattern, replacement }) => {
+      transformed = transformed.replace(pattern, replacement);
+    });
+    
+    // ENHANCED business terminology transformations
+    const businessTerminologyUpgrades = [
+      // People and roles
+      { pattern: /\bvendedores\b/gi, replacement: 'equipo comercial' },
+      { pattern: /\bempleados\b/gi, replacement: 'colaboradores' },
+      { pattern: /\btrabajadores\b/gi, replacement: 'personal' },
+      { pattern: /\bjefe\b/gi, replacement: 'supervisor' },
+      { pattern: /\bgerente\b/gi, replacement: 'director' },
+      
+      // Business relationships
+      { pattern: /\bclientes\b/gi, replacement: 'socios comerciales' },
+      { pattern: /\bcompradores\b/gi, replacement: 'responsables de adquisiciones' },
+      { pattern: /\bproveedores\b/gi, replacement: 'socios estratégicos' },
+      
+      // Business activities
+      { pattern: /\bcomprar\b/gi, replacement: 'adquirir' },
+      { pattern: /\bvender\b/gi, replacement: 'comercializar' },
+      { pattern: /\bnegociar\b/gi, replacement: 'establecer acuerdos comerciales' },
+      { pattern: /\bhacer negocios\b/gi, replacement: 'desarrollar relaciones comerciales' },
+      
+      // Financial terms
+      { pattern: /\bdinero\b/gi, replacement: 'inversión' },
+      { pattern: /\bplata\b/gi, replacement: 'recursos financieros' },
+      { pattern: /\bcaro\b/gi, replacement: 'de alto valor' },
+      { pattern: /\bbarato\b/gi, replacement: 'competitivo en precio' },
+      { pattern: /\bcuesta mucho\b/gi, replacement: 'requiere inversión significativa' },
+      
+      // Process terms
+      { pattern: /\bhacer las cosas\b/gi, replacement: 'ejecutar procesos' },
+      { pattern: /\btrabajar en\b/gi, replacement: 'desarrollar' },
+      { pattern: /\bmanejar\b/gi, replacement: 'gestionar' },
+      { pattern: /\bcontrolar\b/gi, replacement: 'supervisar' }
+    ];
+    
+    // Apply business terminology upgrades
+    businessTerminologyUpgrades.forEach(({ pattern, replacement }) => {
+      transformed = transformed.replace(pattern, replacement);
+    });
+    
+    // ENHANCED context-aware variations to avoid repetition
+    const contextVariations = [
+      // Company perspective variations
+      { 
+        pattern: new RegExp(`\\b${company} considera que\\b`, 'gi'), 
+        alternatives: [`${company} evalúa que`, `En ${company} se considera que`, `${company} determina que`, `La perspectiva de ${company} es que`] 
+      },
+      { 
+        pattern: /\bexcelente\b/gi, 
+        alternatives: ['sobresaliente', 'destacado', 'superior', 'excepcional'] 
+      },
+      { 
+        pattern: /\boportunidades de mejora\b/gi, 
+        alternatives: ['áreas de desarrollo', 'aspectos a optimizar', 'puntos de mejora', 'espacios de crecimiento'] 
+      },
+      { 
+        pattern: /\bsatisfactorio\b/gi, 
+        alternatives: ['adecuado', 'apropiado', 'aceptable', 'conforme a expectativas'] 
+      },
+      { 
+        pattern: /\bdeficiente\b/gi, 
+        alternatives: ['por debajo del estándar', 'requiere mejora', 'insatisfactorio', 'no cumple expectativas'] 
+      }
+    ];
+    
+    // Apply variations randomly to avoid repetition (only sometimes)
+    contextVariations.forEach(({ pattern, alternatives }) => {
+      if (pattern.test(transformed) && Math.random() > 0.6) { // 40% chance of variation
+        const randomAlternative = alternatives[Math.floor(Math.random() * alternatives.length)];
+        transformed = transformed.replace(pattern, randomAlternative);
+      }
+    });
+    
+    // ENHANCED sentence structure and flow improvements
     transformed = transformed
+      // Fix spacing around punctuation
       .replace(/\s+/g, ' ')
       .replace(/\s*,\s*/g, ', ')
       .replace(/\s*\.\s*/g, '. ')
       .replace(/\s*;\s*/g, '; ')
       .replace(/\s*:\s*/g, ': ')
+      .replace(/\s*\?\s*/g, '? ')
+      .replace(/\s*!\s*/g, '! ')
+      // Remove redundant conjunctions
+      .replace(/\b(y y|pero pero|que que|cuando cuando)\b/gi, (match) => match.split(' ')[0])
+      // Improve sentence connectors
+      .replace(/\b(y entonces|y después|y luego)\b/gi, 'posteriormente')
+      .replace(/\b(pero también|pero además)\b/gi, 'adicionalmente')
+      .replace(/\b(y también|y además)\b/gi, 'asimismo')
       .trim();
     
-    // Capitalize first letter and ensure proper sentence ending
+    // ENHANCED capitalization and sentence ending
     if (transformed.length > 0) {
+      // Capitalize first letter
       transformed = transformed.charAt(0).toUpperCase() + transformed.slice(1);
+      
+      // Ensure proper sentence ending
       if (!/[.!?]$/.test(transformed)) {
-        transformed += '.';
+        // Add appropriate ending based on content
+        if (transformed.includes('?') || transformed.toLowerCase().includes('qué') || 
+            transformed.toLowerCase().includes('cómo') || transformed.toLowerCase().includes('cuándo')) {
+          transformed += '?';
+        } else if (transformed.toLowerCase().includes('excelente') || 
+                   transformed.toLowerCase().includes('sobresaliente') ||
+                   transformed.toLowerCase().includes('crítico')) {
+          transformed += '!';
+        } else {
+          transformed += '.';
+        }
       }
+      
+      // Capitalize after periods within the text
+      transformed = transformed.replace(/\.\s+([a-z])/g, (match, letter) => '. ' + letter.toUpperCase());
     }
     
-    console.log(`🔄 Professional transformation applied (${speaker}):`, {
+    console.log(`🔄 Enhanced professional transformation applied (${speaker}):`, {
       original: text.substring(0, 50) + '...',
       transformed: transformed.substring(0, 50) + '...',
-      company: company
+      company: company,
+      improvements: 'Enhanced filler removal, company perspective, professional language, business terminology'
     });
     
     return transformed;
@@ -1104,17 +1245,23 @@ const AdvancedInterviewProcessor = () => {
     }
   };
 
-  // Enhanced CSV generation with multiple business areas
+  // Enhanced CSV generation with multiple business areas AND correction columns
   const generateCsvContent = (insights) => {
     const headers = [
+      // Original data columns
       'file_name', 'start_time', 'end_time', 'speaker', 'confidence',
       'original_text', 'professional_text', 'english_translation',
       'respondent_company', 'respondent_company_code', 'subject_company_code',
       'subject_company', 'business_area_code', 'business_area',
-      'suggested_business_areas', 'suggested_business_area_names', // NEW COLUMNS
+      'suggested_business_areas', 'suggested_business_area_names',
       'sentiment_code', 'sentiment', 'country_specific', 'countries',
       'is_best_in_class', 'needs_review', 'interviewer_type',
-      'processing_date', 'confidence_level'
+      'processing_date', 'confidence_level',
+      
+      // NEW: Correction columns for ML training
+      'corrected_original_text', 'corrected_professional_text', 'corrected_business_area_code',
+      'corrected_suggested_business_areas', 'corrected_sentiment_code', 'corrected_subject_company_code',
+      'correction_notes'
     ];
     
     const csvRows = [headers.join(',')];
@@ -1131,6 +1278,16 @@ const AdvancedInterviewProcessor = () => {
         
         if (header === 'suggested_business_area_names') {
           value = suggestedNames;
+        } else if (header.startsWith('corrected_')) {
+          // Leave correction columns empty for user to fill
+          value = '';
+        } else if (header === 'correction_notes') {
+          // Provide guidance in the notes column
+          if (insight.speaker === 'Speaker_0') {
+            value = 'Interviewer - no corrections needed';
+          } else {
+            value = 'Add corrections here. Use |SPLIT| to split segments, combine text to join segments';
+          }
         } else {
           value = insight[header] || '';
         }
