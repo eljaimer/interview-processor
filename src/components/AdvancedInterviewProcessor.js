@@ -7,42 +7,15 @@ const AdvancedInterviewProcessor = () => {
   const [apiKey, setApiKey] = useState('');
   const [apiStatus, setApiStatus] = useState('disconnected');
   const [processedInsights, setProcessedInsights] = useState([]);
-  const [summary, setSummary] = useState(null);
   const [progress, setProgress] = useState(0);
   const [showCsvData, setShowCsvData] = useState(false);
   const [csvContent, setCsvContent] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [translationEnabled, setTranslationEnabled] = useState(true);
   const fileInputRef = useRef(null);
 
-  // Complete supplier codes from your codebook
-  const supplierCodes = {
-    "kraft heinz": "9138",
-    "coca-cola": "33", 
-    "nestle": "5152",
-    "nestle foods": "5152",
-    "procter & gamble": "296",
-    "p&g": "296",
-    "unilever": "71",
-    "colgate-palmolive": "69",
-    "colgate": "69",
-    "pepsico": "147",
-    "pepsi": "147",
-    "mondelez": "8429",
-    "mars": "4521",
-    "kimberly-clark": "1523",
-    "sc johnson": "2847",
-    "reckitt": "3691",
-    "general mills": "7382",
-    "kellogg": "5927",
-    "johnson & johnson": "1847",
-    "bayer": "2953",
-    "heineken": "4728",
-    "ab inbev": "3582"
-  };
-
-  // Complete competency mapping from your documents
+  // Enhanced competency mapping
   const competencyMap = {
-    // Partnership (10)
     "1001": "Comunicación",
     "1002": "Diferenciación", 
     "1003": "Facilidad para hacer negocios",
@@ -53,15 +26,11 @@ const AdvancedInterviewProcessor = () => {
     "1008": "Apoya nuestra estrategia",
     "1009": "Indicadores logísticos",
     "1010": "Inversión en trade",
-    
-    // Reputación (5)
     "1011": "Equipo capacitado y con experiencia",
     "1012": "Alineación interna",
     "1013": "Objetivos de Sostenibilidad", 
     "1014": "Confianza",
     "1015": "Consumer Marketing",
-    
-    // Ejecución (11)
     "1016": "Crecimiento de la categoría",
     "1017": "Cumple compromisos",
     "1018": "Integración de E-Commerce",
@@ -72,14 +41,10 @@ const AdvancedInterviewProcessor = () => {
     "1023": "Respuesta en servicio al cliente",
     "1024": "Apoyo en tiendas",
     "1025": "Comunicación de órdenes y facturación",
-    
-    // Visión (4)
     "1026": "Agilidad al cambio",
     "1027": "Liderazgo digital",
     "1028": "Información valiosa y objetiva",
     "1029": "Innovación de productos",
-    
-    // Best in Class
     "BIC001": "Best in Class"
   };
 
@@ -89,7 +54,31 @@ const AdvancedInterviewProcessor = () => {
     "SENT003": "Acción Clave"
   };
 
-  // Test API connection - PRODUCTION VERSION
+  // Enhanced supplier codes with aliases
+  const supplierCodes = {
+    "kraft heinz": { code: "9138", aliases: ["kraft", "heinz", "kraft foods"] },
+    "coca-cola": { code: "33", aliases: ["coca cola", "coke", "coca"] },
+    "nestle": { code: "5152", aliases: ["nestlé", "nestle foods", "nescafe"] },
+    "procter & gamble": { code: "296", aliases: ["p&g", "procter", "gamble", "pg"] },
+    "unilever": { code: "71", aliases: ["unilever foods", "dove", "knorr"] },
+    "colgate-palmolive": { code: "69", aliases: ["colgate", "palmolive"] },
+    "pepsico": { code: "147", aliases: ["pepsi", "pepsi cola", "frito lay"] },
+    "mondelez": { code: "8429", aliases: ["oreo", "cadbury", "trident"] },
+    "mars": { code: "4521", aliases: ["mars inc", "snickers", "m&m"] },
+    "kimberly-clark": { code: "1523", aliases: ["kimberly", "clark", "kleenex", "huggies"] },
+    "sc johnson": { code: "2847", aliases: ["johnson", "raid", "glade"] },
+    "reckitt": { code: "3691", aliases: ["reckitt benckiser", "lysol", "dettol"] },
+    "general mills": { code: "7382", aliases: ["general", "mills", "cheerios"] },
+    "kellogg": { code: "5927", aliases: ["kelloggs", "corn flakes", "pringles"] },
+    "johnson & johnson": { code: "1847", aliases: ["j&j", "johnson johnson", "band aid"] },
+    "bayer": { code: "2953", aliases: ["bayer ag", "aspirin"] },
+    "heineken": { code: "4728", aliases: ["heineken beer"] },
+    "ab inbev": { code: "3582", aliases: ["anheuser busch", "budweiser", "corona"] },
+    "lactalis": { code: "DIST001", aliases: ["lactalis group"] },
+    "american foods": { code: "DIST002", aliases: ["american", "american food"] }
+  };
+
+  // Test API connection
   const testApiConnection = async () => {
     if (!apiKey) {
       setErrorMessage('Please enter your ElevenLabs API key');
@@ -124,19 +113,161 @@ const AdvancedInterviewProcessor = () => {
     }
   };
 
-  // Real ElevenLabs transcription - OPTIMAL SETTINGS per ElevenLabs chatbot
-  const transcribeWithElevenLabs = async (file) => {
+  // Enhanced text cleaning function
+  const cleanTranscriptionText = (text) => {
+    return text
+      .replace(/\s+/g, ' ')
+      .replace(/\b(CAM|HO|2025|Hugo|Mejía|Walmart|R105)\b/gi, '')
+      .replace(/\s+([,.!?;:])/g, '$1')
+      .replace(/([,.!?;:])\s*/g, '$1 ')
+      .replace(/[,.!?;:]{2,}/g, '.')
+      .replace(/\beh\s+/gi, '')
+      .replace(/\bmm+\s*/gi, '')
+      .replace(/\bah+\s*/gi, '')
+      .replace(/\b[a-zA-Z0-9]\s+/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
+  // Improved confidence calculation
+  const calculateImprovedConfidence = (words) => {
+    if (!words || words.length === 0) return 0.5;
+    
+    const confidences = words.map(word => {
+      if (word.logprob !== undefined && word.logprob !== null) {
+        return Math.exp(Math.max(word.logprob, -10));
+      }
+      return 0.7;
+    });
+    
+    const avgConfidence = confidences.reduce((sum, conf) => sum + conf, 0) / confidences.length;
+    const lengthFactor = Math.min(words.length / 10, 1);
+    
+    return Math.min(avgConfidence * lengthFactor, 1.0);
+  };
+
+  // Check if segment is only filler words
+  const isFillerOnlySegment = (text) => {
+    const cleanText = text.replace(/[,.!?;:\s]/g, '').toLowerCase();
+    const fillerWords = ['eh', 'mm', 'ah', 'hmm', 'bueno', 'este', 'pues'];
+    return fillerWords.some(filler => cleanText === filler) || cleanText.length < 3;
+  };
+
+  // Time formatting
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    const ms = Math.floor((seconds % 1) * 1000);
+    return `${mins}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`;
+  };
+
+  // Improved API response parsing
+  const parseApiResponseImproved = (apiResponse) => {
+    const segments = [];
+    
+    if (apiResponse.words && Array.isArray(apiResponse.words)) {
+      const words = apiResponse.words;
+      
+      const PAUSE_THRESHOLD = 2.5;
+      const MAX_SEGMENT_DURATION = 30;
+      const MIN_WORDS_PER_SEGMENT = 8;
+      const MAX_WORDS_PER_SEGMENT = 50;
+      
+      let currentSegment = {
+        words: [],
+        speaker: null,
+        startTime: 0,
+        endTime: 0
+      };
+      
+      for (let i = 0; i < words.length; i++) {
+        const word = words[i];
+        const currentSpeaker = word.speaker_id || 'speaker_1';
+        const wordStart = word.start || 0;
+        const wordEnd = word.end || wordStart + 0.5;
+        
+        const speakerChanged = currentSegment.speaker && currentSegment.speaker !== currentSpeaker;
+        const longPause = currentSegment.words.length > 0 && 
+                         (wordStart - currentSegment.endTime) > PAUSE_THRESHOLD;
+        const segmentTooLong = (wordEnd - currentSegment.startTime) > MAX_SEGMENT_DURATION;
+        const tooManyWords = currentSegment.words.length >= MAX_WORDS_PER_SEGMENT;
+        
+        const sentenceEnded = word.text && 
+                             /[.!?]$/.test(word.text.trim()) && 
+                             currentSegment.words.length >= MIN_WORDS_PER_SEGMENT;
+        
+        const naturalBreak = word.text && 
+                            (/\b(entonces|pero|porque|aunque|sin embargo|además|también|por eso|ahora|después|luego)\b/i.test(word.text)) &&
+                            currentSegment.words.length >= MIN_WORDS_PER_SEGMENT;
+        
+        if ((speakerChanged || longPause || segmentTooLong || tooManyWords || sentenceEnded || naturalBreak) && 
+            currentSegment.words.length > 0) {
+          
+          const segmentText = cleanTranscriptionText(currentSegment.words.map(w => w.text).join(' '));
+          const avgConfidence = calculateImprovedConfidence(currentSegment.words);
+          
+          if (segmentText.trim().length > 5 && !isFillerOnlySegment(segmentText)) {
+            segments.push({
+              start_time: formatTime(currentSegment.startTime),
+              end_time: formatTime(currentSegment.endTime),
+              speaker: currentSegment.speaker === 'speaker_1' ? 'Speaker_1' : 'Speaker_0',
+              confidence: avgConfidence,
+              text: segmentText.trim()
+            });
+          }
+          
+          currentSegment = {
+            words: [word],
+            speaker: currentSpeaker,
+            startTime: wordStart,
+            endTime: wordEnd
+          };
+        } else {
+          currentSegment.words.push(word);
+          if (currentSegment.words.length === 1) {
+            currentSegment.speaker = currentSpeaker;
+            currentSegment.startTime = wordStart;
+          }
+          currentSegment.endTime = wordEnd;
+        }
+      }
+      
+      // Add final segment
+      if (currentSegment.words.length > 0) {
+        const segmentText = cleanTranscriptionText(currentSegment.words.map(w => w.text).join(' '));
+        const avgConfidence = calculateImprovedConfidence(currentSegment.words);
+        
+        if (segmentText.trim().length > 5 && !isFillerOnlySegment(segmentText)) {
+          segments.push({
+            start_time: formatTime(currentSegment.startTime),
+            end_time: formatTime(currentSegment.endTime),
+            speaker: currentSegment.speaker === 'speaker_1' ? 'Speaker_1' : 'Speaker_0',
+            confidence: avgConfidence,
+            text: segmentText.trim()
+          });
+        }
+      }
+      
+      console.log(`✅ Created ${segments.length} clean segments from ${words.length} words`);
+      return segments;
+    }
+    
+    throw new Error('Unexpected API response format');
+  };
+
+  // Improved transcription function
+  const transcribeWithElevenLabsImproved = async (file) => {
     try {
       setProgress(10);
       
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('model_id', 'scribe_v1'); // Exact model as recommended
-      // formData.append('language_code', 'es'); // REMOVED: Let it auto-detect as recommended
-      formData.append('diarize', 'true'); // Enable speaker separation 
-      formData.append('num_speakers', '2'); // Interview = 2 speakers
-      formData.append('tag_audio_events', 'false'); // Disable [laughter], [footsteps] as recommended
-      formData.append('timestamps_granularity', 'word'); // Keep word-level for processing
+      formData.append('model_id', 'scribe_v1');
+      formData.append('diarize', 'true');
+      formData.append('num_speakers', '2');
+      formData.append('tag_audio_events', 'false');
+      formData.append('timestamps_granularity', 'word');
+      formData.append('response_format', 'json');
 
       setProgress(20);
 
@@ -156,10 +287,10 @@ const AdvancedInterviewProcessor = () => {
       }
 
       const result = await response.json();
-      console.log('✅ ElevenLabs transcription completed:', result);
+      console.log('✅ ElevenLabs transcription completed');
       
       setProgress(80);
-      const segments = parseApiResponse(result);
+      const segments = parseApiResponseImproved(result);
       setProgress(90);
       return { success: true, segments };
 
@@ -169,219 +300,271 @@ const AdvancedInterviewProcessor = () => {
     }
   };
 
-  const parseApiResponse = (apiResponse) => {
-    console.log('=== FULL API RESPONSE ===');
-    console.log(JSON.stringify(apiResponse, null, 2));
-    console.log('=== END API RESPONSE ===');
-    
-    // Let's see what structure we actually get
-    if (apiResponse.words) {
-      console.log('Found words array with', apiResponse.words.length, 'words');
-      console.log('First 3 words:', apiResponse.words.slice(0, 3));
-    }
-    
-    if (apiResponse.text) {
-      console.log('Found direct text:', apiResponse.text.substring(0, 200) + '...');
-    }
-    
-    // TEMPORARY: Just create basic segments from the text for now
-    const segments = [];
-    
-    if (apiResponse.text) {
-      // Split text into reasonable chunks (every ~100 characters or at sentence breaks)
-      const text = apiResponse.text;
-      const chunks = text.match(/.{1,100}(?:\s|$)/g) || [text];
-      
-      chunks.forEach((chunk, index) => {
-        if (chunk.trim().length > 10) {
-          segments.push({
-            start_time: formatTime(index * 10),
-            end_time: formatTime((index + 1) * 10),
-            speaker: index % 2 === 0 ? 'Speaker_1' : 'Speaker_0',
-            confidence: 0.85,
-            text: chunk.trim()
-          });
-        }
-      });
-    } else if (apiResponse.words && apiResponse.words.length > 0) {
-      // Fallback: Create one segment from all words
-      const allText = apiResponse.words.map(w => w.text).join(' ');
-      segments.push({
-        start_time: "0:00:00.000",
-        end_time: "0:10:00.000", 
-        speaker: "Speaker_1",
-        confidence: 0.85,
-        text: allText
-      });
-    }
-    
-    console.log(`Created ${segments.length} basic segments for debugging`);
-    return segments;
-  };
-
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    const ms = Math.floor((seconds % 1) * 1000);
-    return `${mins}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`;
-  };
-
-  const extractCompanyInfo = (filename) => {
+  // Enhanced filename parsing
+  const extractCompanyInfoImproved = (filename) => {
     console.log('Parsing filename:', filename);
     
-    // Remove file extension first
     const nameWithoutExt = filename.replace(/\.(mp4|mp3|wav|m4a)$/i, '');
-    console.log('Without extension:', nameWithoutExt);
     
-    // Split by underscores
-    const parts = nameWithoutExt.split('_');
-    console.log('Split parts:', parts);
+    // Try multiple parsing strategies
+    let parts = nameWithoutExt.split('_');
     
-    // Manual parsing for this specific format: CAMHO2025_Hugo Mejia_785_Walmart_R105
-    if (parts.length >= 4) {
-      const result = {
-        region: 'CAM',
-        program: 'HO',
-        year: '2025',
-        interviewee: parts[1] || 'Hugo Mejia',
-        interviewee_id: parts[2] || '785',
-        company: parts[3] || 'Walmart',
-        company_id: parts[4] || 'R105',
-        program_type: 'Head Office - Retailers assess Suppliers'
-      };
-      console.log('Extracted info:', result);
-      return result;
+    // Handle spaces in filename
+    if (parts.length < 4) {
+      parts = nameWithoutExt.split(/[\s_]+/);
     }
     
-    // Try alternative parsing - maybe spaces in filename are causing issues
-    if (filename.includes('Walmart')) {
-      const result = {
-        region: 'CAM',
-        program: 'HO', 
-        year: '2025',
-        interviewee: 'Hugo Mejia',
-        interviewee_id: '785',
-        company: 'Walmart',
-        company_id: 'R105',
-        program_type: 'Head Office - Retailers assess Suppliers'
-      };
-      console.log('Walmart detected, using manual parsing:', result);
-      return result;
-    }
-    
-    // Final fallback
-    console.log('Using fallback parsing');
-    return {
+    // Extract information with better fallbacks
+    const result = {
       region: 'CAM',
       program: 'HO',
-      year: '2025', 
-      interviewee: 'Hugo Mejia',
-      interviewee_id: '785',
-      company: 'Walmart',
-      company_id: 'R105',
+      year: '2025',
+      interviewee: 'Unknown',
+      interviewee_id: 'Unknown',
+      company: 'Unknown',
+      company_id: 'Unknown',
       program_type: 'Head Office - Retailers assess Suppliers'
     };
-  };
-
-  const getSupplierCode = (supplierName) => {
-    if (!supplierName || supplierName.includes("Best in Class")) {
-      return "BIC001";
-    }
-    const lowerName = supplierName.toLowerCase();
-    return supplierCodes[lowerName] || "TBD";
-  };
-
-  const transformToProfessional = (text, speaker, companyName = "la compañía") => {
-    if (speaker === "Speaker_0") {
-      return text; // Keep interviewer questions as-is
+    
+    // Try to extract from parts
+    if (parts.length >= 4) {
+      result.interviewee = parts[1] || result.interviewee;
+      result.interviewee_id = parts[2] || result.interviewee_id;
+      result.company = parts[3] || result.company;
+      result.company_id = parts[4] || result.company_id;
     }
     
-    // GENTLE transformation - only remove obvious filler words
+    // Look for known companies in filename
+    const knownCompanies = ['Walmart', 'Coca-Cola', 'Nestlé', 'Kraft', 'P&G'];
+    knownCompanies.forEach(company => {
+      if (filename.toLowerCase().includes(company.toLowerCase())) {
+        result.company = company;
+      }
+    });
+    
+    console.log('Extracted info:', result);
+    return result;
+  };
+
+  // Enhanced professional transformation
+  const transformToProfessionalImproved = (text, speaker, companyName = "la compañía") => {
+    if (speaker === "Speaker_1") {
+      return text.replace(/\s+/g, ' ').replace(/\beh,?\s*/gi, '').replace(/\bmm,?\s*/gi, '').trim();
+    }
+    
+    // Remove filler words comprehensively
     let professional = text
-      .replace(/\bbueno,?\s*/gi, '')
-      .replace(/\beh,?\s*/gi, '')
-      .replace(/\bo sea,?\s*/gi, '')
+      .replace(/\b(eh|mm|ah|hmm|este|pues|bueno|o sea|como que|no sé|verdad|¿verdad\?)\b,?\s*/gi, '')
+      .replace(/\b(digamos|como te digo|como te decía|la verdad|en realidad)\b,?\s*/gi, '')
+      .replace(/\b(más o menos|como que|medio|un poco)\s+/gi, '')
       .replace(/\s+/g, ' ')
       .trim();
 
-    // MINIMAL first-person transformation - only the most obvious cases
-    professional = professional
-      .replace(/\byo creo\b/gi, `${companyName} considera`)
-      .replace(/\bnosotros\b/gi, companyName);
-
-    // Ensure proper capitalization
-    professional = professional.charAt(0).toUpperCase() + professional.slice(1);
+    // Transform personal to company perspective with variations
+    const transformations = [
+      { pattern: /\byo creo que\b/gi, replacement: `En ${companyName} consideramos que` },
+      { pattern: /\bcreo que\b/gi, replacement: `${companyName} considera que` },
+      { pattern: /\byo pienso que\b/gi, replacement: `En ${companyName} pensamos que` },
+      { pattern: /\bpienso que\b/gi, replacement: `${companyName} piensa que` },
+      { pattern: /\byo siento que\b/gi, replacement: `En ${companyName} percibimos que` },
+      { pattern: /\ben mi opinión\b/gi, replacement: `Desde la perspectiva de ${companyName}` },
+      { pattern: /\byo he visto\b/gi, replacement: `${companyName} ha observado` },
+      { pattern: /\bhe visto\b/gi, replacement: `${companyName} ha observado` },
+      { pattern: /\byo necesito\b/gi, replacement: `${companyName} requiere` },
+      { pattern: /\bnecesito\b/gi, replacement: `${companyName} necesita` },
+      { pattern: /\bme gustaría\b/gi, replacement: `${companyName} busca` },
+      { pattern: /\bnosotros tenemos\b/gi, replacement: `${companyName} tiene` },
+      { pattern: /\btenemos\b/gi, replacement: `${companyName} tiene` },
+      { pattern: /\bestamos\b/gi, replacement: `${companyName} está` },
+      { pattern: /\byo\b/gi, replacement: companyName },
+      { pattern: /\bnosotros\b/gi, replacement: companyName }
+    ];
     
-    if (!professional.endsWith('.') && !professional.endsWith('?') && !professional.endsWith('!')) {
+    transformations.forEach(({ pattern, replacement }) => {
+      professional = professional.replace(pattern, replacement);
+    });
+
+    // Improve sentence structure
+    professional = professional
+      .replace(/\bpero\b/gi, 'sin embargo')
+      .replace(/\by también\b/gi, 'además')
+      .replace(/\bmuy bueno\b/gi, 'excelente')
+      .replace(/\bmuy malo\b/gi, 'deficiente')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    // Ensure proper capitalization and punctuation
+    if (professional.length > 0) {
+      professional = professional.charAt(0).toUpperCase() + professional.slice(1);
+    }
+    
+    if (professional.length > 0 && 
+        !professional.endsWith('.') && 
+        !professional.endsWith('?') && 
+        !professional.endsWith('!')) {
       professional += '.';
     }
     
     return professional;
   };
 
-  const autoTag = (text) => {
+  // Enhanced subject company detection
+  const detectSubjectCompanyEnhanced = (text) => {
     const lowerText = text.toLowerCase();
-    let businessArea = "1006"; // Default to supply chain
-    let sentiment = "SENT002"; // Default to opportunity
+    
+    for (const [company, data] of Object.entries(supplierCodes)) {
+      const allNames = [company, ...data.aliases];
+      
+      for (const name of allNames) {
+        if (lowerText.includes(name.toLowerCase())) {
+          return {
+            company: formatCompanyName(company),
+            code: data.code,
+            confidence: 0.8
+          };
+        }
+      }
+    }
+    
+    return {
+      company: "Unknown",
+      code: "TBD",
+      confidence: 0
+    };
+  };
+
+  const formatCompanyName = (name) => {
+    const nameMap = {
+      "kraft heinz": "Kraft Heinz",
+      "coca-cola": "Coca-Cola",
+      "nestle": "Nestlé",
+      "procter & gamble": "Procter & Gamble",
+      "unilever": "Unilever",
+      "colgate-palmolive": "Colgate-Palmolive",
+      "pepsico": "PepsiCo",
+      "mondelez": "Mondelez",
+      "mars": "Mars",
+      "kimberly-clark": "Kimberly-Clark",
+      "sc johnson": "SC Johnson",
+      "reckitt": "Reckitt",
+      "general mills": "General Mills",
+      "kellogg": "Kellogg",
+      "johnson & johnson": "Johnson & Johnson",
+      "bayer": "Bayer",
+      "heineken": "Heineken",
+      "ab inbev": "AB InBev",
+      "lactalis": "Lactalis",
+      "american foods": "American Foods"
+    };
+    return nameMap[name] || name;
+  };
+
+  // Enhanced auto-tagging
+  const autoTagEnhanced = (text) => {
+    const lowerText = text.toLowerCase();
     
     // Skip interviewer questions
-    if (lowerText.includes('evalúa') || lowerText.includes('¿') || lowerText.includes('cómo')) {
-      return { businessArea: "INTERVIEWER", sentiment: "INTERVIEWER", isInterviewer: true };
+    if (lowerText.includes('evalúa') || lowerText.includes('¿') || 
+        lowerText.includes('cómo') || lowerText.includes('qué tal')) {
+      return {
+        businessArea: "INTERVIEWER",
+        sentiment: "INTERVIEWER",
+        isInterviewer: true,
+        confidence: 1.0
+      };
     }
     
     // Detect Best in Class
-    if (lowerText.includes('proveedor ideal') || lowerText.includes('best in class') || 
-        lowerText.includes('mejor práctica') || lowerText.includes('referente')) {
-      return { businessArea: "BIC001", sentiment: "BIC001", isBestInClass: true };
+    const bicKeywords = ["best in class", "mejor práctica", "referente", "líder", "ejemplo", "modelo", "ideal"];
+    const isBestInClass = bicKeywords.some(keyword => lowerText.includes(keyword));
+    
+    if (isBestInClass) {
+      return {
+        businessArea: "BIC001",
+        sentiment: "BIC001",
+        isBestInClass: true,
+        confidence: 0.9
+      };
     }
     
-    // Business area detection (comprehensive mapping)
-    if (lowerText.includes('distribu') || lowerText.includes('cadena') || lowerText.includes('logística') || 
-        lowerText.includes('abasto') || lowerText.includes('inventario') || lowerText.includes('almacén')) {
-      businessArea = "1006"; // Supply Chain Efficiencies
-    } else if (lowerText.includes('comunicación') || lowerText.includes('información') || lowerText.includes('contacto')) {
-      businessArea = "1001"; // Communication  
-    } else if (lowerText.includes('marca') || lowerText.includes('marketing') || lowerText.includes('publicidad')) {
-      businessArea = "1015"; // Consumer Marketing
-    } else if (lowerText.includes('pedido') || lowerText.includes('entrega') || lowerText.includes('tiempo')) {
-      businessArea = "1019"; // On-time and complete orders
-    } else if (lowerText.includes('compromiso') || lowerText.includes('cumpl')) {
-      businessArea = "1017"; // Keeping commitments
-    } else if (lowerText.includes('digital') || lowerText.includes('online') || lowerText.includes('e-commerce')) {
-      businessArea = "1018"; // E-commerce integration
-    } else if (lowerText.includes('promoción') || lowerText.includes('descuento') || lowerText.includes('oferta')) {
-      businessArea = "1020"; // Promotions management
-    } else if (lowerText.includes('categoría') || lowerText.includes('crecimiento') || lowerText.includes('venta')) {
-      businessArea = "1016"; // Category growth
-    } else if (lowerText.includes('confianza') || lowerText.includes('transparente') || lowerText.includes('honesto')) {
-      businessArea = "1014"; // Trust
-    } else if (lowerText.includes('equipo') || lowerText.includes('personal') || lowerText.includes('experiencia')) {
-      businessArea = "1011"; // Experienced team
+    // Enhanced business area detection
+    let businessArea = "1006"; // Default
+    let confidence = 0.5;
+    
+    const businessAreaKeywords = {
+      "1001": ["comunicación", "información", "contacto", "diálogo", "transparencia"],
+      "1006": ["distribu", "cadena", "logística", "abasto", "inventario", "almacén"],
+      "1015": ["marca", "marketing", "publicidad", "consumer"],
+      "1019": ["pedido", "entrega", "tiempo", "puntual"],
+      "1017": ["compromiso", "cumpl", "promesa"],
+      "1018": ["digital", "online", "e-commerce", "ecommerce"],
+      "1016": ["crecimiento", "categoría", "ventas"],
+      "1014": ["confianza", "confiable", "transparente"],
+      "1011": ["equipo", "personal", "experiencia", "capacitado"]
+    };
+    
+    let maxScore = 0;
+    Object.entries(businessAreaKeywords).forEach(([code, keywords]) => {
+      const score = keywords.reduce((sum, keyword) => 
+        sum + (lowerText.includes(keyword) ? 1 : 0), 0);
+      if (score > maxScore) {
+        maxScore = score;
+        businessArea = code;
+        confidence = Math.min(0.9, 0.5 + (score * 0.15));
+      }
+    });
+    
+    // Enhanced sentiment analysis
+    let sentiment = "SENT002"; // Default to opportunity
+    
+    const strengthKeywords = ["fuerte", "buen", "excelen", "positiv", "destaca", "reconoc", "eficiente"];
+    const keyActionKeywords = ["necesita", "debe", "tiene que", "debería", "requier", "important", "urgente"];
+    const opportunityKeywords = ["oportunidad", "mejorar", "problema", "dificulta", "complica", "falta"];
+    
+    const strengthScore = strengthKeywords.reduce((sum, keyword) => 
+      sum + (lowerText.includes(keyword) ? 1 : 0), 0);
+    const keyActionScore = keyActionKeywords.reduce((sum, keyword) => 
+      sum + (lowerText.includes(keyword) ? 1 : 0), 0);
+    const opportunityScore = opportunityKeywords.reduce((sum, keyword) => 
+      sum + (lowerText.includes(keyword) ? 1 : 0), 0);
+    
+    if (keyActionScore > strengthScore && keyActionScore > opportunityScore) {
+      sentiment = "SENT003";
+    } else if (strengthScore > opportunityScore && strengthScore > 0) {
+      sentiment = "SENT001";
     }
     
-    // Sentiment detection (nuanced analysis)
-    if (lowerText.includes('fuerte') || lowerText.includes('buen') || lowerText.includes('excelen') || 
-        lowerText.includes('positiv') || lowerText.includes('destaca') || lowerText.includes('reconoc')) {
-      sentiment = "SENT001"; // Strength
-    } else if (lowerText.includes('necesita') || lowerText.includes('debe') || lowerText.includes('tiene que') || 
-               lowerText.includes('debería') || lowerText.includes('requier') || lowerText.includes('important')) {
-      sentiment = "SENT003"; // Key Action
-    } else if (lowerText.includes('oportunidad') || lowerText.includes('mejorar') || lowerText.includes('problema') || 
-               lowerText.includes('dificulta') || lowerText.includes('complica') || lowerText.includes('falta')) {
-      sentiment = "SENT002"; // Opportunity
-    }
-    
-    return { businessArea, sentiment, isInterviewer: false, isBestInClass: false };
+    return {
+      businessArea,
+      sentiment,
+      confidence,
+      isInterviewer: false,
+      isBestInClass: false
+    };
   };
 
-  const detectCountries = (text) => {
-    const countries = ['Guatemala', 'El Salvador', 'Honduras', 'Costa Rica', 'Nicaragua', 'Panamá'];
+  // Country detection
+  const detectCountriesEnhanced = (text) => {
+    const countries = ["Guatemala", "El Salvador", "Honduras", "Costa Rica", "Nicaragua", "Panamá"];
+    const lowerText = text.toLowerCase();
     const mentioned = countries.filter(country => 
-      text.toLowerCase().includes(country.toLowerCase())
+      lowerText.includes(country.toLowerCase())
     );
-    return mentioned.length > 0 ? mentioned : ['Regional'];
+    return mentioned.length > 0 ? mentioned : ["Regional"];
   };
 
+  // Simple translation function (placeholder for OpenAI integration)
+  const translateToEnglish = async (text) => {
+    if (!translationEnabled || !text || text.trim().length === 0) {
+      return "Translation pending";
+    }
+    
+    // This would integrate with OpenAI API in production
+    // For now, return a placeholder
+    return "Translation pending - OpenAI integration needed";
+  };
+
+  // Main processing function
   const processAudioFile = async () => {
     if (!audioFile || !apiKey || apiStatus !== 'connected') {
       setErrorMessage('Please select file, enter API key, and test connection first');
@@ -394,8 +577,8 @@ const AdvancedInterviewProcessor = () => {
     setErrorMessage('');
 
     try {
-      console.log('🎙️ Starting transcription process...');
-      const transcription = await transcribeWithElevenLabs(audioFile);
+      console.log('🎙️ Starting improved transcription process...');
+      const transcription = await transcribeWithElevenLabsImproved(audioFile);
       
       if (!transcription.success) {
         throw new Error('Transcription failed');
@@ -404,758 +587,350 @@ const AdvancedInterviewProcessor = () => {
       console.log('📝 Processing transcription segments...');
       setProgress(40);
 
-      const companyInfo = extractCompanyInfo(audioFile.name);
+      const companyInfo = extractCompanyInfoImproved(audioFile.name);
       const insights = [];
 
-      transcription.segments.forEach((segment, index) => {
-        const tags = autoTag(segment.text);
+      for (const [index, segment] of transcription.segments.entries()) {
+        const tags = autoTagEnhanced(segment.text);
         
         if (!tags.isInterviewer) {
-          const professionalText = transformToProfessional(segment.text, segment.speaker, companyInfo.company);
-          const countries = detectCountries(segment.text);
+          const professionalText = transformToProfessionalImproved(
+            segment.text, 
+            segment.speaker, 
+            companyInfo.company
+          );
           
-          // Detect subject company from text - IMPROVED
-          let subjectCompany = "Unknown";
-          let subjectCompanyCode = "TBD";
+          const countries = detectCountriesEnhanced(segment.text);
+          const subjectCompanyResult = detectSubjectCompanyEnhanced(segment.text);
           
-          // Enhanced company detection
-          const lowerSegmentText = segment.text.toLowerCase();
-          
-          if (lowerSegmentText.includes('kraft') || lowerSegmentText.includes('heinz')) {
-            subjectCompany = "Kraft Heinz";
-            subjectCompanyCode = "9138";
-          } else if (lowerSegmentText.includes('coca-cola') || lowerSegmentText.includes('coca cola')) {
-            subjectCompany = "Coca-Cola";
-            subjectCompanyCode = "33";
-          } else if (lowerSegmentText.includes('nestlé') || lowerSegmentText.includes('nestle')) {
-            subjectCompany = "Nestlé";
-            subjectCompanyCode = "5152";
-          } else if (lowerSegmentText.includes('procter') || lowerSegmentText.includes('p&g')) {
-            subjectCompany = "Procter & Gamble";
-            subjectCompanyCode = "296";
-          } else if (lowerSegmentText.includes('unilever')) {
-            subjectCompany = "Unilever";
-            subjectCompanyCode = "71";
-          } else if (lowerSegmentText.includes('colgate')) {
-            subjectCompany = "Colgate-Palmolive";
-            subjectCompanyCode = "69";
-          } else if (lowerSegmentText.includes('pepsi')) {
-            subjectCompany = "PepsiCo";
-            subjectCompanyCode = "147";
-          } else if (lowerSegmentText.includes('lactalis')) {
-            subjectCompany = "Lactalis";
-            subjectCompanyCode = "DIST001"; // Distributor code
-          } else if (lowerSegmentText.includes('american foods')) {
-            subjectCompany = "American Foods";
-            subjectCompanyCode = "DIST002"; // Distributor code
-          }
+          // Get English translation
+          const englishTranslation = await translateToEnglish(professionalText);
           
           insights.push({
-            id: index,
+            file_name: audioFile.name,
             start_time: segment.start_time,
             end_time: segment.end_time,
             speaker: segment.speaker,
             confidence: segment.confidence,
             original_text: segment.text,
             professional_text: professionalText,
+            english_translation: englishTranslation,
             
-            // Respondent Information (who gave the interview)
-            respondent_company: companyInfo.company, // Walmart
-            respondent_company_id: companyInfo.company_id, // R105
-            interviewee_name: companyInfo.interviewee, // Hugo Mejia
-            interviewee_id: companyInfo.interviewee_id, // 785
+            // Respondent Information
+            respondent_company: companyInfo.company,
+            respondent_company_code: companyInfo.company_id,
             
-            // Study Information
-            region: companyInfo.region, // CAM
-            program: companyInfo.program, // HO
-            program_type: companyInfo.program_type, // Head Office - Retailers assess Suppliers
-            year: companyInfo.year, // 2025
-            
-            // Subject Information (what/who is being evaluated)
-            subject_company_code: tags.isBestInClass ? "BIC001" : subjectCompanyCode,
-            subject_company: tags.isBestInClass ? "N/A - Best in Class" : subjectCompany,
+            // Subject Information
+            subject_company_code: tags.isBestInClass ? "BIC001" : subjectCompanyResult.code,
+            subject_company: tags.isBestInClass ? "N/A - Best in Class" : subjectCompanyResult.company,
             
             // Analysis Results
             business_area_code: tags.businessArea,
             business_area: tags.isBestInClass ? "Best in Class" : competencyMap[tags.businessArea],
-            suggested_business_areas: (tags.suggestedAreas || []).map(code => competencyMap[code]).filter(Boolean).join('; '), // Fixed: null check
-            suggested_area_codes: (tags.suggestedAreas || []).join('; '), // Fixed: null check
             sentiment_code: tags.sentiment,
             sentiment: tags.isBestInClass ? "Best in Class" : sentimentMap[tags.sentiment],
-            countries: countries,
-            country_notation: countries.join('; '),
-            is_best_in_class: tags.isBestInClass || false,
-            needs_review: segment.confidence < 0.8
+            
+            // Additional fields
+            country_specific: countries.length > 1 || !countries.includes("Regional") ? "Country-specific" : "Regional",
+            countries: countries.join("; "),
+            is_best_in_class: tags.isBestInClass ? "Yes" : "No",
+            needs_review: segment.confidence < 0.7 ? "Yes" : "No",
+            interviewer_type: "Retailer",
+            processing_date: new Date().toISOString().split('T')[0],
+            confidence_level: segment.confidence >= 0.8 ? "High" : segment.confidence >= 0.6 ? "Medium" : "Low"
           });
         }
-      });
+        
+        // Update progress
+        setProgress(40 + (index / transcription.segments.length) * 40);
+      }
 
       setProcessedInsights(insights);
-      setProgress(80);
+      setProgress(90);
 
-      console.log('📊 Generating summary...');
-      generateSummary(insights, transcription.segments);
+      console.log('📊 Generating summary and CSV...');
+      generateCsvContent(insights);
       setProgress(100);
       setStep(3);
 
-      console.log(`✅ Processing complete: ${insights.length} insights extracted`);
-
     } catch (error) {
-      console.error('❌ Processing failed:', error);
+      console.error('❌ Processing error:', error);
       setErrorMessage(`Processing failed: ${error.message}`);
-    } finally {
       setProcessing(false);
-    }
-  };
-
-  const generateSummary = (insights, segments) => {
-    const sentimentCounts = insights.reduce((acc, insight) => {
-      if (!insight.is_best_in_class) {
-        acc[insight.sentiment] = (acc[insight.sentiment] || 0) + 1;
-      }
-      return acc;
-    }, {});
-
-    const businessAreaCounts = insights.reduce((acc, insight) => {
-      if (!insight.is_best_in_class) {
-        acc[insight.business_area] = (acc[insight.business_area] || 0) + 1;
-      }
-      return acc;
-    }, {});
-
-    const avgConfidence = segments.reduce((sum, seg) => sum + seg.confidence, 0) / segments.length;
-    const lowConfidenceCount = segments.filter(seg => seg.confidence < 0.8).length;
-    const bestInClassCount = insights.filter(insight => insight.is_best_in_class).length;
-
-    setSummary({
-      totalSegments: segments.length,
-      businessInsights: insights.length,
-      sentimentCounts,
-      businessAreaCounts,
-      avgConfidence,
-      lowConfidenceCount,
-      bestInClassCount,
-      reviewNeeded: lowConfidenceCount
-    });
-  };
-
-  const handleFileUpload = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      setAudioFile(file);
       setStep(1);
-      setProcessedInsights([]);
-      setSummary(null);
-      setErrorMessage('');
-      console.log('📁 File loaded:', file.name, `(${(file.size / 1024 / 1024).toFixed(1)} MB)`);
     }
   };
 
-  const exportResults = () => {
-    if (!processedInsights || processedInsights.length === 0) {
-      setErrorMessage('No insights to export');
-      return;
-    }
+  // Generate CSV content
+  const generateCsvContent = (insights) => {
+    const headers = [
+      'file_name', 'start_time', 'end_time', 'speaker', 'confidence',
+      'original_text', 'professional_text', 'english_translation',
+      'respondent_company', 'respondent_company_code', 'subject_company_code',
+      'subject_company', 'business_area_code', 'business_area',
+      'sentiment_code', 'sentiment', 'country_specific', 'countries',
+      'is_best_in_class', 'needs_review', 'interviewer_type',
+      'processing_date', 'confidence_level'
+    ];
+    
+    const csvRows = [headers.join(',')];
+    
+    insights.forEach(insight => {
+      const row = headers.map(header => {
+        const value = insight[header] || '';
+        // Escape commas and quotes in CSV
+        return `"${String(value).replace(/"/g, '""')}"`;
+      });
+      csvRows.push(row.join(','));
+    });
+    
+    setCsvContent(csvRows.join('\n'));
+    setProcessing(false);
+  };
 
-    try {
-      console.log('📤 Exporting results...');
-      
-      // Prepare CSV data with all required columns for Advantage workflow
-      const csvData = processedInsights.map(insight => ({
-        file_name: audioFile.name || '',
-        start_time: insight.start_time || '',
-        end_time: insight.end_time || '',
-        speaker: insight.speaker || '',
-        confidence: insight.confidence ? insight.confidence.toFixed(2) : '0.00',
-        original_text: insight.original_text || '',
-        professional_text: insight.professional_text || '',
-        english_translation: 'TBD - Translation pending',
-        respondent_company: insight.respondent_company || '',
-        respondent_company_code: insight.respondent_company_code || '',
-        subject_company_code: insight.subject_company_code || '',
-        subject_company: insight.subject_company || '',
-        business_area_code: insight.business_area_code || '',
-        business_area: insight.business_area || '',
-        sentiment_code: insight.sentiment_code || '',
-        sentiment: insight.sentiment || '',
-        country_specific: insight.country_notation || '',
-        countries: insight.countries ? insight.countries.join(';') : '',
-        is_best_in_class: insight.is_best_in_class ? 'Yes' : 'No',
-        needs_review: insight.needs_review ? 'Yes' : 'No',
-        interviewer_type: 'Retailer',
-        processing_date: new Date().toISOString().split('T')[0],
-        confidence_level: insight.confidence >= 0.8 ? 'High' : 'Low'
-      }));
+  // Download CSV
+  const downloadCsv = () => {
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = `interview_analysis_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  };
 
-      // Create CSV content with proper escaping
-      const headers = Object.keys(csvData[0]);
-      const csvContent = [
-        headers.join(','),
-        ...csvData.map(row => 
-          headers.map(header => {
-            const value = row[header] || '';
-            const stringValue = String(value).replace(/"/g, '""');
-            return stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n') 
-              ? `"${stringValue}"` 
-              : stringValue;
-          }).join(',')
-        )
-      ].join('\n');
-
-      // Try native download
-      if (window.URL && window.URL.createObjectURL) {
-        try {
-          const blob = new Blob([csvContent], { 
-            type: 'text/csv;charset=utf-8;' 
-          });
-          
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = `interview_analysis_${new Date().toISOString().split('T')[0]}.csv`;
-          
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          URL.revokeObjectURL(url);
-          
-          console.log(`✅ CSV exported: ${csvData.length} insights`);
-          setErrorMessage('');
-          return;
-          
-        } catch (downloadError) {
-          console.log('Native download failed, using fallback');
-        }
-      }
-      
-      // Fallback: Show CSV data for manual copy
-      setCsvContent(csvContent);
-      setShowCsvData(true);
-      console.log('Using manual copy fallback');
-      
-    } catch (error) {
-      console.error('Export error:', error);
-      setErrorMessage(`Export failed: ${error.message}`);
+  // Reset function
+  const resetProcessor = () => {
+    setAudioFile(null);
+    setProcessing(false);
+    setStep(1);
+    setProcessedInsights([]);
+    setProgress(0);
+    setShowCsvData(false);
+    setCsvContent('');
+    setErrorMessage('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '24px', fontFamily: 'system-ui, sans-serif' }}>
-      {/* Header */}
-      <div style={{ 
-        padding: '24px', 
-        backgroundColor: '#f8fafc', 
-        borderRadius: '8px', 
-        marginBottom: '24px',
-        border: '1px solid #e2e8f0'
-      }}>
-        <h1 style={{ 
-          fontSize: '32px', 
-          fontWeight: 'bold', 
-          margin: '0 0 8px 0',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px'
-        }}>
-          🎙️ Production Interview Processing System
-        </h1>
-        <p style={{ color: '#64748b', margin: 0 }}>
-          Complete workflow: ElevenLabs transcription → Professional formatting → Business tagging → CSV export
-        </p>
+    <div className="max-w-6xl mx-auto p-6 bg-white">
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-lg mb-6">
+        <h1 className="text-3xl font-bold mb-2">🎙️ Advanced Interview Processor</h1>
+        <p className="text-blue-100">Enhanced transcription, transformation, and analysis platform</p>
       </div>
 
-      {/* Error Message */}
-      {errorMessage && (
-        <div style={{ 
-          padding: '16px', 
-          backgroundColor: '#fef2f2', 
-          border: '1px solid #fecaca',
-          borderRadius: '8px', 
-          marginBottom: '24px',
-          color: '#dc2626'
-        }}>
-          <strong>⚠️ Error:</strong> {errorMessage}
+      {/* Step 1: Setup */}
+      {step === 1 && (
+        <div className="space-y-6">
+          <div className="bg-gray-50 p-6 rounded-lg">
+            <h2 className="text-xl font-semibold mb-4">Step 1: Setup & Configuration</h2>
+            
+            {/* API Key Input */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                ElevenLabs API Key
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="password"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder="Enter your ElevenLabs API key"
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <button
+                  onClick={testApiConnection}
+                  disabled={!apiKey || apiStatus === 'connecting'}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {apiStatus === 'connecting' ? 'Testing...' : 'Test Connection'}
+                </button>
+              </div>
+              
+              {/* API Status */}
+              <div className="mt-2">
+                {apiStatus === 'connected' && (
+                  <div className="text-green-600 text-sm">✅ API Connected Successfully</div>
+                )}
+                {apiStatus === 'error' && (
+                  <div className="text-red-600 text-sm">❌ Connection Failed</div>
+                )}
+              </div>
+            </div>
+
+            {/* Translation Toggle */}
+            <div className="mb-4">
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={translationEnabled}
+                  onChange={(e) => setTranslationEnabled(e.target.checked)}
+                  className="mr-2"
+                />
+                <span className="text-sm text-gray-700">Enable English Translation (requires OpenAI API)</span>
+              </label>
+            </div>
+
+            {/* File Upload */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Audio File
+              </label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".mp3,.wav,.mp4,.m4a"
+                onChange={(e) => setAudioFile(e.target.files[0])}
+                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              />
+              {audioFile && (
+                <div className="mt-2 text-sm text-gray-600">
+                  Selected: {audioFile.name} ({(audioFile.size / 1024 / 1024).toFixed(2)} MB)
+                </div>
+              )}
+            </div>
+
+            {/* Error Message */}
+            {errorMessage && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
+                {errorMessage}
+              </div>
+            )}
+
+            {/* Process Button */}
+            <button
+              onClick={processAudioFile}
+              disabled={!audioFile || apiStatus !== 'connected' || processing}
+              className="w-full px-4 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+            >
+              {processing ? 'Processing...' : '🚀 Start Processing'}
+            </button>
+          </div>
         </div>
       )}
 
-      {/* Step 1: Configuration */}
-      <div style={{ 
-        padding: '24px', 
-        backgroundColor: '#ffffff', 
-        borderRadius: '8px', 
-        marginBottom: '24px',
-        border: '1px solid #e2e8f0'
-      }}>
-        <h2 style={{ margin: '0 0 16px 0', fontSize: '20px' }}>⚙️ Step 1: API Configuration & File Upload</h2>
-        
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '8px' }}>
-              ElevenLabs API Key
-            </label>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <input
-                type="password"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder="Enter your ElevenLabs API key"
-                style={{ 
-                  flex: 1, 
-                  padding: '8px 12px', 
-                  border: '1px solid #d1d5db', 
-                  borderRadius: '6px',
-                  fontSize: '14px'
-                }}
-              />
-              <button 
-                onClick={testApiConnection}
-                disabled={!apiKey || apiStatus === 'connecting'}
-                style={{ 
-                  padding: '8px 16px', 
-                  backgroundColor: apiStatus === 'connected' ? '#10b981' : '#3b82f6',
-                  color: 'white', 
-                  border: 'none', 
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  cursor: 'pointer',
-                  opacity: (!apiKey || apiStatus === 'connecting') ? 0.5 : 1
-                }}
-              >
-                {apiStatus === 'connected' ? '✅' : apiStatus === 'connecting' ? '⏳' : '📡'} Test
-              </button>
-            </div>
-            <div style={{ 
-              fontSize: '12px', 
-              marginTop: '4px',
-              color: apiStatus === 'connected' ? '#10b981' : 
-                     apiStatus === 'connecting' ? '#3b82f6' :
-                     apiStatus === 'error' ? '#dc2626' : '#6b7280'
-            }}>
-              Status: {apiStatus === 'connected' ? 'Connected' : 
-                      apiStatus === 'connecting' ? 'Testing...' :
-                      apiStatus === 'error' ? 'Connection Failed' : 'Not Connected'}
-            </div>
-          </div>
-          
-          <div>
-            <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '8px' }}>
-              Audio File
-            </label>
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileUpload}
-              accept="audio/*"
-              style={{ 
-                width: '100%', 
-                padding: '8px 12px', 
-                border: '1px solid #d1d5db', 
-                borderRadius: '6px',
-                fontSize: '14px'
-              }}
-            />
-          </div>
-        </div>
-        
-        {audioFile && (
-          <div style={{ 
-            padding: '16px', 
-            backgroundColor: '#eff6ff', 
-            borderRadius: '8px',
-            border: '1px solid #bfdbfe'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <p style={{ margin: '0 0 4px 0', fontWeight: '500' }}>{audioFile.name}</p>
-                <p style={{ margin: '0 0 4px 0', fontSize: '14px', color: '#6b7280' }}>
-                  Size: {(audioFile.size / 1024 / 1024).toFixed(1)} MB
-                </p>
-                <p style={{ margin: 0, fontSize: '14px', color: '#3b82f6' }}>
-                  Company: {extractCompanyInfo(audioFile.name).name} ({extractCompanyInfo(audioFile.name).code})
-                </p>
-              </div>
-              <button 
-                onClick={processAudioFile}
-                disabled={processing || !apiKey || apiStatus !== 'connected'}
-                style={{ 
-                  padding: '12px 24px', 
-                  backgroundColor: '#10b981',
-                  color: 'white', 
-                  border: 'none', 
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  opacity: (processing || !apiKey || apiStatus !== 'connected') ? 0.5 : 1
-                }}
-              >
-                ▶️ {processing ? 'Processing...' : 'Process Interview'}
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
       {/* Step 2: Processing */}
-      {step >= 2 && (
-        <div style={{ 
-          padding: '24px', 
-          backgroundColor: '#ffffff', 
-          borderRadius: '8px', 
-          marginBottom: '24px',
-          border: '1px solid #e2e8f0'
-        }}>
-          <h2 style={{ margin: '0 0 16px 0', fontSize: '20px' }}>⚡ Step 2: Real-Time Processing</h2>
-          
-          <div style={{ marginBottom: '16px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', marginBottom: '8px' }}>
-              <span>Processing with ElevenLabs API...</span>
-              <span>{Math.round(progress)}%</span>
+      {step === 2 && (
+        <div className="space-y-6">
+          <div className="bg-gray-50 p-6 rounded-lg">
+            <h2 className="text-xl font-semibold mb-4">Step 2: Processing Audio</h2>
+            
+            <div className="mb-4">
+              <div className="flex justify-between text-sm text-gray-600 mb-1">
+                <span>Progress</span>
+                <span>{progress}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${progress}%` }}
+                ></div>
+              </div>
             </div>
-            <div style={{ 
-              width: '100%', 
-              height: '8px', 
-              backgroundColor: '#e5e7eb', 
-              borderRadius: '4px',
-              overflow: 'hidden'
-            }}>
-              <div style={{ 
-                width: `${progress}%`, 
-                height: '100%', 
-                backgroundColor: '#3b82f6',
-                transition: 'width 0.3s ease'
-              }} />
-            </div>
-          </div>
-          
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
-            <div style={{ padding: '12px', backgroundColor: '#eff6ff', borderRadius: '6px', textAlign: 'center' }}>
-              <div style={{ fontSize: '14px', fontWeight: '500', color: '#1e40af' }}>Real Transcription</div>
-              <div style={{ fontSize: '12px', color: '#3b82f6' }}>ElevenLabs API</div>
-            </div>
-            <div style={{ padding: '12px', backgroundColor: '#f3e8ff', borderRadius: '6px', textAlign: 'center' }}>
-              <div style={{ fontSize: '14px', fontWeight: '500', color: '#7c3aed' }}>Speaker Detection</div>
-              <div style={{ fontSize: '12px', color: '#8b5cf6' }}>Auto Diarization</div>
-            </div>
-            <div style={{ padding: '12px', backgroundColor: '#ecfdf5', borderRadius: '6px', textAlign: 'center' }}>
-              <div style={{ fontSize: '14px', fontWeight: '500', color: '#059669' }}>Processing</div>
-              <div style={{ fontSize: '12px', color: '#10b981' }}>Professional Format</div>
-            </div>
-            <div style={{ padding: '12px', backgroundColor: '#fff7ed', borderRadius: '6px', textAlign: 'center' }}>
-              <div style={{ fontSize: '14px', fontWeight: '500', color: '#ea580c' }}>Analysis</div>
-              <div style={{ fontSize: '12px', color: '#f97316' }}>Auto-Tagging</div>
+
+            <div className="text-center text-gray-600">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+              Processing your audio file with enhanced algorithms...
             </div>
           </div>
         </div>
       )}
 
       {/* Step 3: Results */}
-      {step >= 3 && (
-        <>
-          <div style={{ 
-            padding: '24px', 
-            backgroundColor: '#ffffff', 
-            borderRadius: '8px', 
-            marginBottom: '24px',
-            border: '1px solid #e2e8f0'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h2 style={{ margin: 0, fontSize: '20px' }}>📊 Step 3: Results ({processedInsights.length} insights)</h2>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button 
-                  onClick={exportResults}
-                  style={{ 
-                    padding: '8px 16px', 
-                    backgroundColor: '#10b981',
-                    color: 'white', 
-                    border: 'none', 
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  📥 Export CSV
-                </button>
-                {showCsvData && (
-                  <button 
-                    onClick={() => setShowCsvData(false)}
-                    style={{ 
-                      padding: '8px 16px', 
-                      backgroundColor: '#6b7280',
-                      color: 'white', 
-                      border: 'none', 
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Hide CSV
-                  </button>
-                )}
+      {step === 3 && (
+        <div className="space-y-6">
+          <div className="bg-gray-50 p-6 rounded-lg">
+            <h2 className="text-xl font-semibold mb-4">Step 3: Results</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="bg-white p-4 rounded-lg border">
+                <div className="text-2xl font-bold text-blue-600">{processedInsights.length}</div>
+                <div className="text-sm text-gray-600">Processed Segments</div>
+              </div>
+              <div className="bg-white p-4 rounded-lg border">
+                <div className="text-2xl font-bold text-green-600">
+                  {processedInsights.filter(i => i.confidence_level === 'High').length}
+                </div>
+                <div className="text-sm text-gray-600">High Confidence</div>
+              </div>
+              <div className="bg-white p-4 rounded-lg border">
+                <div className="text-2xl font-bold text-orange-600">
+                  {processedInsights.filter(i => i.needs_review === 'Yes').length}
+                </div>
+                <div className="text-sm text-gray-600">Need Review</div>
               </div>
             </div>
 
+            <div className="flex gap-4 mb-6">
+              <button
+                onClick={downloadCsv}
+                className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+              >
+                📥 Download CSV
+              </button>
+              <button
+                onClick={() => setShowCsvData(!showCsvData)}
+                className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              >
+                {showCsvData ? 'Hide' : 'Show'} CSV Data
+              </button>
+              <button
+                onClick={resetProcessor}
+                className="px-6 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+              >
+                🔄 Process Another File
+              </button>
+            </div>
+
+            {/* CSV Data Preview */}
             {showCsvData && (
-              <div style={{ 
-                padding: '16px', 
-                backgroundColor: '#eff6ff', 
-                borderRadius: '8px',
-                marginBottom: '16px',
-                border: '1px solid #bfdbfe'
-              }}>
-                <h3 style={{ margin: '0 0 8px 0', color: '#1e40af' }}>CSV Data (Manual Download)</h3>
-                <p style={{ fontSize: '14px', color: '#3b82f6', margin: '0 0 12px 0' }}>
-                  Copy data below and save as .csv file for Excel import.
-                </p>
-                <textarea
-                  value={csvContent}
-                  readOnly
-                  onClick={(e) => e.target.select()}
-                  style={{ 
-                    width: '100%', 
-                    height: '200px', 
-                    padding: '12px', 
-                    border: '1px solid #d1d5db', 
-                    borderRadius: '6px',
-                    fontFamily: 'monospace',
-                    fontSize: '12px',
-                    resize: 'vertical'
-                  }}
-                />
-                <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '8px' }}>
-                  Click above to select all, then copy (Ctrl+C) and paste into Excel
+              <div className="bg-white border rounded-lg p-4">
+                <h3 className="font-semibold mb-2">CSV Data Preview</h3>
+                <div className="overflow-x-auto">
+                  <pre className="text-xs bg-gray-50 p-4 rounded border max-h-96 overflow-y-auto">
+                    {csvContent.substring(0, 2000)}
+                    {csvContent.length > 2000 && '\n... (truncated for display)'}
+                  </pre>
                 </div>
               </div>
             )}
-            
-            <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-              {processedInsights.map((insight) => (
-                <div 
-                  key={insight.id} 
-                  style={{ 
-                    padding: '16px', 
-                    backgroundColor: '#f8fafc',
-                    borderRadius: '8px',
-                    marginBottom: '16px',
-                    border: '1px solid #e2e8f0',
-                    borderLeft: `4px solid ${insight.is_best_in_class ? '#f59e0b' : '#3b82f6'}`
-                  }}
-                >
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
-                    <span style={{ 
-                      padding: '4px 8px', 
-                      backgroundColor: '#e5e7eb', 
-                      borderRadius: '4px', 
-                      fontSize: '12px',
-                      border: '1px solid #d1d5db'
-                    }}>
-                      {insight.respondent_company}
-                    </span>
-                    <span style={{ 
-                      padding: '4px 8px', 
-                      backgroundColor: '#e5e7eb', 
-                      borderRadius: '4px', 
-                      fontSize: '12px',
-                      border: '1px solid #d1d5db'
-                    }}>
-                      {insight.subject_company_code}
-                    </span>
-                    <span style={{ 
-                      padding: '4px 8px', 
-                      backgroundColor: '#e5e7eb', 
-                      borderRadius: '4px', 
-                      fontSize: '12px',
-                      border: '1px solid #d1d5db'
-                    }}>
-                      {insight.subject_company}
-                    </span>
-                    <span style={{ 
-                      padding: '4px 8px', 
-                      backgroundColor: insight.sentiment === 'Fortaleza' ? '#dcfce7' :
-                                       insight.sentiment === 'Oportunidad' ? '#fef3c7' :
-                                       insight.sentiment === 'Best in Class' ? '#f3e8ff' : '#fecaca',
-                      color: insight.sentiment === 'Fortaleza' ? '#166534' :
-                             insight.sentiment === 'Oportunidad' ? '#92400e' :
-                             insight.sentiment === 'Best in Class' ? '#7c3aed' : '#dc2626',
-                      borderRadius: '4px', 
-                      fontSize: '12px',
-                      fontWeight: '500'
-                    }}>
-                      {insight.sentiment}
-                    </span>
-                    <span style={{ 
-                      padding: '4px 8px', 
-                      backgroundColor: '#f1f5f9', 
-                      borderRadius: '4px', 
-                      fontSize: '12px'
-                    }}>
-                      {insight.country_notation}
-                    </span>
-                    {insight.needs_review && (
-                      <span style={{ 
-                        padding: '4px 8px', 
-                        backgroundColor: '#fed7aa', 
-                        color: '#c2410c',
-                        borderRadius: '4px', 
-                        fontSize: '12px',
-                        fontWeight: '500'
-                      }}>
-                        ⚠️ Review
-                      </span>
-                    )}
-                    <span style={{ 
-                      padding: '4px 8px', 
-                      backgroundColor: '#f3f4f6', 
-                      borderRadius: '4px', 
-                      fontSize: '12px'
-                    }}>
-                      {(insight.confidence * 100).toFixed(0)}%
-                    </span>
-                  </div>
-                  
-                  <div style={{ fontSize: '14px' }}>
-                    <div style={{ marginBottom: '8px' }}>
-                      <span style={{ fontWeight: '500', color: '#6b7280' }}>Original:</span>
-                      <p style={{ color: '#6b7280', fontStyle: 'italic', margin: '4px 0' }}>
-                        "{insight.original_text}"
-                      </p>
+
+            {/* Sample Results */}
+            {processedInsights.length > 0 && (
+              <div className="bg-white border rounded-lg p-4">
+                <h3 className="font-semibold mb-4">Sample Processed Insights</h3>
+                <div className="space-y-4">
+                  {processedInsights.slice(0, 3).map((insight, index) => (
+                    <div key={index} className="border-l-4 border-blue-500 pl-4 py-2">
+                      <div className="text-sm text-gray-600 mb-1">
+                        {insight.start_time} - {insight.end_time} | {insight.speaker} | Confidence: {insight.confidence_level}
+                      </div>
+                      <div className="text-sm mb-2">
+                        <strong>Original:</strong> {insight.original_text}
+                      </div>
+                      <div className="text-sm mb-2">
+                        <strong>Professional:</strong> {insight.professional_text}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Business Area: {insight.business_area} | Sentiment: {insight.sentiment} | 
+                        Subject: {insight.subject_company}
+                      </div>
                     </div>
-                    <div style={{ marginBottom: '8px' }}>
-                      <span style={{ fontWeight: '500', color: '#6b7280' }}>Professional:</span>
-                      <p style={{ color: '#1f2937', margin: '4px 0' }}>
-                        {insight.professional_text}
-                      </p>
-                    </div>
-                    <div style={{ fontSize: '12px', color: '#6b7280' }}>
-                      {insight.business_area} ({insight.business_area_code}) | {insight.start_time} - {insight.end_time}
-                    </div>
-                  </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
           </div>
-
-          {/* Summary */}
-          {summary && (
-            <div style={{ 
-              padding: '24px', 
-              backgroundColor: '#ffffff', 
-              borderRadius: '8px', 
-              marginBottom: '24px',
-              border: '1px solid #e2e8f0'
-            }}>
-              <h2 style={{ margin: '0 0 16px 0', fontSize: '20px' }}>📈 Processing Summary</h2>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
-                <div style={{ padding: '16px', backgroundColor: '#eff6ff', borderRadius: '8px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#1e40af' }}>{summary.businessInsights}</div>
-                  <div style={{ fontSize: '14px', color: '#3b82f6' }}>Business Insights</div>
-                </div>
-                <div style={{ padding: '16px', backgroundColor: '#ecfdf5', borderRadius: '8px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#059669' }}>
-                    {(summary.avgConfidence * 100).toFixed(0)}%
-                  </div>
-                  <div style={{ fontSize: '14px', color: '#10b981' }}>Avg Confidence</div>
-                </div>
-                <div style={{ padding: '16px', backgroundColor: '#f3e8ff', borderRadius: '8px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#7c3aed' }}>{summary.bestInClassCount}</div>
-                  <div style={{ fontSize: '14px', color: '#8b5cf6' }}>Best in Class</div>
-                </div>
-                <div style={{ padding: '16px', backgroundColor: '#fff7ed', borderRadius: '8px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#ea580c' }}>{summary.reviewNeeded}</div>
-                  <div style={{ fontSize: '14px', color: '#f97316' }}>Need Review</div>
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-                <div style={{ 
-                  padding: '16px', 
-                  backgroundColor: '#f8fafc', 
-                  borderRadius: '8px',
-                  border: '1px solid #e2e8f0'
-                }}>
-                  <h3 style={{ margin: '0 0 12px 0', fontSize: '16px' }}>Sentiment Distribution</h3>
-                  {Object.entries(summary.sentimentCounts).map(([sentiment, count]) => (
-                    <div key={sentiment} style={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
-                      alignItems: 'center', 
-                      padding: '8px 0',
-                      borderBottom: '1px solid #e5e7eb'
-                    }}>
-                      <span style={{ fontSize: '14px' }}>{sentiment}</span>
-                      <span style={{ 
-                        padding: '2px 8px', 
-                        backgroundColor: '#e5e7eb', 
-                        borderRadius: '4px', 
-                        fontSize: '12px',
-                        border: '1px solid #d1d5db'
-                      }}>
-                        {count}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-
-                <div style={{ 
-                  padding: '16px', 
-                  backgroundColor: '#f8fafc', 
-                  borderRadius: '8px',
-                  border: '1px solid #e2e8f0'
-                }}>
-                  <h3 style={{ margin: '0 0 12px 0', fontSize: '16px' }}>Business Areas</h3>
-                  {Object.entries(summary.businessAreaCounts).map(([area, count]) => (
-                    <div key={area} style={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
-                      alignItems: 'center', 
-                      padding: '8px 0',
-                      borderBottom: '1px solid #e5e7eb'
-                    }}>
-                      <span style={{ fontSize: '14px' }}>{area}</span>
-                      <span style={{ 
-                        padding: '2px 8px', 
-                        backgroundColor: '#e5e7eb', 
-                        borderRadius: '4px', 
-                        fontSize: '12px',
-                        border: '1px solid #d1d5db'
-                      }}>
-                        {count}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-        </>
-      )}
-
-      {/* Production Ready */}
-      <div style={{ 
-        padding: '24px', 
-        backgroundColor: '#ffffff', 
-        borderRadius: '8px',
-        border: '1px solid #e2e8f0'
-      }}>
-        <h2 style={{ margin: '0 0 16px 0', fontSize: '20px' }}>Production Ready ✅</h2>
-        <div style={{ 
-          padding: '16px', 
-          backgroundColor: '#ecfdf5', 
-          borderRadius: '8px',
-          border: '1px solid #a7f3d0'
-        }}>
-          <h4 style={{ margin: '0 0 8px 0', color: '#059669', fontWeight: '600' }}>
-            Real ElevenLabs Integration Active
-          </h4>
-          <p style={{ fontSize: '14px', color: '#047857', margin: 0 }}>
-            System uses actual ElevenLabs API for transcription. All 30 business competencies mapped. 
-            Professional text transformation and country-specific tagging included. Ready for production deployment.
-          </p>
         </div>
-      </div>
+      )}
     </div>
   );
 };
 
 export default AdvancedInterviewProcessor;
+
