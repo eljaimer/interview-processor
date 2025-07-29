@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 
 const AdvancedInterviewProcessor = () => {
+  // State management
   const [audioFile, setAudioFile] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [step, setStep] = useState(1);
@@ -16,10 +17,12 @@ const AdvancedInterviewProcessor = () => {
   const [trainingData, setTrainingData] = useState([]);
   const [modelStats, setModelStats] = useState({ interviews: 0, corrections: 0, accuracy: 0 });
   const [storageMethod, setStorageMethod] = useState('localStorage');
+  
+  // Refs
   const fileInputRef = useRef(null);
   const correctionFileRef = useRef(null);
 
-  // Enhanced competency mapping with priorities for multiple suggestions
+  // Enhanced competency mapping with priorities
   const competencyMap = {
     "1001": { name: "Comunicación", keywords: ["comunicación", "información", "contacto", "diálogo", "transparencia"], priority: 1 },
     "1002": { name: "Diferenciación", keywords: ["diferencia", "único", "distintivo", "especial"], priority: 2 },
@@ -59,31 +62,7 @@ const AdvancedInterviewProcessor = () => {
     "SENT003": "Acción Clave"
   };
 
-  // Enhanced supplier codes with aliases
-  const supplierCodes = {
-    "kraft heinz": { code: "9138", aliases: ["kraft", "heinz", "kraft foods"] },
-    "coca-cola": { code: "33", aliases: ["coca cola", "coke", "coca"] },
-    "nestle": { code: "5152", aliases: ["nestlé", "nestle foods", "nescafe"] },
-    "procter & gamble": { code: "296", aliases: ["p&g", "procter", "gamble", "pg"] },
-    "unilever": { code: "71", aliases: ["unilever foods", "dove", "knorr"] },
-    "colgate-palmolive": { code: "69", aliases: ["colgate", "palmolive"] },
-    "pepsico": { code: "147", aliases: ["pepsi", "pepsi cola", "frito lay"] },
-    "mondelez": { code: "8429", aliases: ["oreo", "cadbury", "trident"] },
-    "mars": { code: "4521", aliases: ["mars inc", "snickers", "m&m"] },
-    "kimberly-clark": { code: "1523", aliases: ["kimberly", "clark", "kleenex", "huggies"] },
-    "sc johnson": { code: "2847", aliases: ["johnson", "raid", "glade"] },
-    "reckitt": { code: "3691", aliases: ["reckitt benckiser", "lysol", "dettol"] },
-    "general mills": { code: "7382", aliases: ["general", "mills", "cheerios"] },
-    "kellogg": { code: "5927", aliases: ["kelloggs", "corn flakes", "pringles"] },
-    "johnson & johnson": { code: "1847", aliases: ["j&j", "johnson johnson", "band aid"] },
-    "bayer": { code: "2953", aliases: ["bayer ag", "aspirin"] },
-    "heineken": { code: "4728", aliases: ["heineken beer"] },
-    "ab inbev": { code: "3582", aliases: ["anheuser busch", "budweiser", "corona"] },
-    "lactalis": { code: "DIST001", aliases: ["lactalis group"] },
-    "american foods": { code: "DIST002", aliases: ["american", "american food"] }
-  };
-
-  // ML Training Data with flexible segment handling
+  // ML Training Data
   const [mlTrainingData, setMlTrainingData] = useState({
     transcriptionPatterns: [],
     transformationRules: [],
@@ -95,19 +74,18 @@ const AdvancedInterviewProcessor = () => {
     version: '1.1'
   });
 
-  // Load training data on component mount
+  // Effects
   useEffect(() => {
     loadPersistedTrainingData();
   }, [storageMethod]);
 
-  // Save training data whenever it changes
   useEffect(() => {
     if (mlTrainingData.transcriptionPatterns.length > 0) {
       saveTrainingDataToPersistentStorage();
     }
   }, [mlTrainingData]);
 
-  // Test API connection
+  // API Connection
   const testApiConnection = async () => {
     if (!apiKey) {
       setErrorMessage('Please enter your ElevenLabs API key');
@@ -142,7 +120,7 @@ const AdvancedInterviewProcessor = () => {
     }
   };
 
-  // Storage functions
+  // Storage Functions
   const saveToLocalStorage = async (data) => {
     try {
       const serializedData = JSON.stringify({
@@ -207,7 +185,7 @@ const AdvancedInterviewProcessor = () => {
     }
   };
 
-  // Update model statistics
+  // Model Statistics
   const updateModelStats = (data) => {
     const totalPatterns = data.transcriptionPatterns.length + 
                          data.transformationRules.length + 
@@ -233,7 +211,7 @@ const AdvancedInterviewProcessor = () => {
     return 90;
   };
 
-  // Load corrected training data
+  // Training Data Loading
   const loadTrainingData = async (file) => {
     try {
       const text = await file.text();
@@ -252,10 +230,8 @@ const AdvancedInterviewProcessor = () => {
         }
       }
       
-      // Process corrections to extract learning patterns
       const newPatterns = processCorrectionsForML(corrections);
       
-      // Merge with existing ML data
       setMlTrainingData(prev => ({
         transcriptionPatterns: [...prev.transcriptionPatterns, ...newPatterns.transcriptionPatterns],
         transformationRules: [...prev.transformationRules, ...newPatterns.transformationRules],
@@ -271,7 +247,6 @@ const AdvancedInterviewProcessor = () => {
       
       console.log(`✅ Loaded ${corrections.length} corrections for ML training`);
       
-      // Auto-save to persistent storage
       setTimeout(() => saveTrainingDataToPersistentStorage(), 1000);
       
     } catch (error) {
@@ -280,7 +255,6 @@ const AdvancedInterviewProcessor = () => {
     }
   };
 
-  // Process corrections to extract ML patterns
   const processCorrectionsForML = (corrections) => {
     const newPatterns = {
       transcriptionPatterns: [],
@@ -292,7 +266,6 @@ const AdvancedInterviewProcessor = () => {
     };
 
     corrections.forEach(correction => {
-      // Extract transcription patterns
       if (correction.original_text && correction.corrected_transcription) {
         newPatterns.transcriptionPatterns.push({
           original: correction.original_text,
@@ -303,7 +276,6 @@ const AdvancedInterviewProcessor = () => {
         });
       }
 
-      // Extract transformation rules
       if (correction.original_text && correction.corrected_professional_text && correction.speaker === 'Speaker_1') {
         newPatterns.transformationRules.push({
           original: correction.original_text,
@@ -313,7 +285,6 @@ const AdvancedInterviewProcessor = () => {
         });
       }
 
-      // Extract business area classifications
       if (correction.original_text && correction.corrected_business_area_code) {
         newPatterns.businessAreaClassifications.push({
           text: correction.original_text,
@@ -324,7 +295,6 @@ const AdvancedInterviewProcessor = () => {
         });
       }
 
-      // Extract sentiment analysis
       if (correction.original_text && correction.corrected_sentiment_code) {
         newPatterns.sentimentAnalysis.push({
           text: correction.original_text,
@@ -338,7 +308,7 @@ const AdvancedInterviewProcessor = () => {
     return newPatterns;
   };
 
-  // Enhanced auto-tagging with multiple business area suggestions
+  // Enhanced Auto-Tagging
   const autoTagEnhancedMultiple = (text, speaker) => {
     if (speaker === "Speaker_0") {
       return {
@@ -352,7 +322,6 @@ const AdvancedInterviewProcessor = () => {
     
     const lowerText = text.toLowerCase();
     
-    // Detect Best in Class first
     const bicKeywords = ["best in class", "mejor práctica", "referente", "líder", "ejemplo", "modelo", "ideal"];
     const isBestInClass = bicKeywords.some(keyword => lowerText.includes(keyword));
     
@@ -366,7 +335,6 @@ const AdvancedInterviewProcessor = () => {
       };
     }
     
-    // Calculate scores for all business areas
     const businessAreaScores = [];
     
     Object.entries(competencyMap).forEach(([code, data]) => {
@@ -374,14 +342,12 @@ const AdvancedInterviewProcessor = () => {
       
       let score = 0;
       
-      // Check keyword matches
       data.keywords.forEach(keyword => {
         if (lowerText.includes(keyword)) {
           score += 1;
         }
       });
       
-      // Apply priority weighting
       const priorityBonus = (4 - data.priority) * 0.1;
       score += priorityBonus;
       
@@ -395,11 +361,9 @@ const AdvancedInterviewProcessor = () => {
       }
     });
     
-    // Sort by score and get top 3
     businessAreaScores.sort((a, b) => b.score - a.score);
     const topAreas = businessAreaScores.slice(0, 3);
     
-    // Primary business area
     const primaryArea = topAreas.length > 0 ? topAreas[0] : {
       code: "1006",
       name: "Eficiencias en Cadena de Suministro",
@@ -407,12 +371,10 @@ const AdvancedInterviewProcessor = () => {
       confidence: 0.5
     };
     
-    // Suggested business areas
     const suggestedAreas = topAreas.length > 0 
       ? topAreas.map(area => area.code).join(":")
       : "1006";
     
-    // Sentiment analysis
     let sentiment = "SENT002";
     
     const strengthKeywords = ["fuerte", "buen", "excelen", "positiv", "destaca", "reconoc", "eficiente"];
@@ -442,114 +404,7 @@ const AdvancedInterviewProcessor = () => {
     };
   };
 
-  // Enhanced subject company detection
-  const detectSubjectCompanyEnhanced = (text) => {
-    const lowerText = text.toLowerCase();
-    
-    for (const [company, data] of Object.entries(supplierCodes)) {
-      const allNames = [company, ...data.aliases];
-      
-      for (const name of allNames) {
-        if (lowerText.includes(name.toLowerCase())) {
-          return {
-            company: formatCompanyName(company),
-            code: data.code,
-            confidence: 0.8
-          };
-        }
-      }
-    }
-    
-    return {
-      company: "Unknown",
-      code: "TBD",
-      confidence: 0
-    };
-  };
-
-  const formatCompanyName = (name) => {
-    const nameMap = {
-      "kraft heinz": "Kraft Heinz",
-      "coca-cola": "Coca-Cola",
-      "nestle": "Nestlé",
-      "procter & gamble": "Procter & Gamble",
-      "unilever": "Unilever",
-      "colgate-palmolive": "Colgate-Palmolive",
-      "pepsico": "PepsiCo",
-      "mondelez": "Mondelez",
-      "mars": "Mars",
-      "kimberly-clark": "Kimberly-Clark",
-      "sc johnson": "SC Johnson",
-      "reckitt": "Reckitt",
-      "general mills": "General Mills",
-      "kellogg": "Kellogg",
-      "johnson & johnson": "Johnson & Johnson",
-      "bayer": "Bayer",
-      "heineken": "Heineken",
-      "ab inbev": "AB InBev",
-      "lactalis": "Lactalis",
-      "american foods": "American Foods"
-    };
-    return nameMap[name] || name;
-  };
-
-  // Country detection
-  const detectCountriesEnhanced = (text) => {
-    const countries = ["Guatemala", "El Salvador", "Honduras", "Costa Rica", "Nicaragua", "Panamá"];
-    const lowerText = text.toLowerCase();
-    const mentioned = countries.filter(country => 
-      lowerText.includes(country.toLowerCase())
-    );
-    return mentioned.length > 0 ? mentioned : ["Regional"];
-  };
-
-  // Enhanced filename parsing
-  const extractCompanyInfoImproved = (filename) => {
-    console.log('Parsing filename:', filename);
-    
-    const nameWithoutExt = filename.replace(/\.(mp4|mp3|wav|m4a)$/i, '');
-    
-    // Try multiple parsing strategies
-    let parts = nameWithoutExt.split('_');
-    
-    // Handle spaces in filename
-    if (parts.length < 4) {
-      parts = nameWithoutExt.split(/[\s_]+/);
-    }
-    
-    // Extract information with better fallbacks
-    const result = {
-      region: 'CAM',
-      program: 'HO',
-      year: '2025',
-      interviewee: 'Unknown',
-      interviewee_id: 'Unknown',
-      company: 'Unknown',
-      company_id: 'Unknown',
-      program_type: 'Head Office - Retailers assess Suppliers'
-    };
-    
-    // Try to extract from parts
-    if (parts.length >= 4) {
-      result.interviewee = parts[1] || result.interviewee;
-      result.interviewee_id = parts[2] || result.interviewee_id;
-      result.company = parts[3] || result.company;
-      result.company_id = parts[4] || result.company_id;
-    }
-    
-    // Look for known companies in filename
-    const knownCompanies = ['Walmart', 'Coca-Cola', 'Nestlé', 'Kraft', 'P&G'];
-    knownCompanies.forEach(company => {
-      if (filename.toLowerCase().includes(company.toLowerCase())) {
-        result.company = company;
-      }
-    });
-    
-    console.log('Extracted info:', result);
-    return result;
-  };
-
-  // Mock processing function for demo
+  // Processing Function
   const processAudioFile = async () => {
     if (!audioFile || !apiKey || apiStatus !== 'connected') {
       setErrorMessage('Please select file, enter API key, and test connection first');
@@ -562,10 +417,7 @@ const AdvancedInterviewProcessor = () => {
     setErrorMessage('');
 
     try {
-      // Simulate processing
       setProgress(50);
-      
-      const companyInfo = extractCompanyInfoImproved(audioFile.name);
       
       const mockInsights = [{
         file_name: audioFile.name,
@@ -576,8 +428,8 @@ const AdvancedInterviewProcessor = () => {
         original_text: "¿Sí? Entonces, Hugo, el día de hoy me encantaría platicarle de Kraft Heinz",
         professional_text: "¿Sí? Entonces, Hugo, el día de hoy me encantaría platicarle de Kraft Heinz",
         english_translation: "Translation pending",
-        respondent_company: companyInfo.company,
-        respondent_company_code: companyInfo.company_id,
+        respondent_company: "Walmart",
+        respondent_company_code: "R105",
         subject_company_code: "9138",
         subject_company: "Kraft Heinz",
         business_area_code: "INTERVIEWER",
@@ -597,7 +449,6 @@ const AdvancedInterviewProcessor = () => {
       setProcessedInsights(mockInsights);
       setProgress(90);
 
-      // Generate CSV
       const headers = [
         'file_name', 'start_time', 'end_time', 'speaker', 'confidence',
         'original_text', 'professional_text', 'english_translation',
@@ -642,7 +493,7 @@ const AdvancedInterviewProcessor = () => {
     }
   };
 
-  // Download CSV
+  // Utility Functions
   const downloadCsv = () => {
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -656,7 +507,6 @@ const AdvancedInterviewProcessor = () => {
     document.body.removeChild(a);
   };
 
-  // Reset function
   const resetProcessor = () => {
     setAudioFile(null);
     setProcessing(false);
@@ -781,7 +631,6 @@ const AdvancedInterviewProcessor = () => {
           <div className="bg-gray-50 p-6 rounded-lg">
             <h2 className="text-xl font-semibold mb-4">Step 1: Setup & Configuration</h2>
             
-            {/* API Key Input */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 ElevenLabs API Key
@@ -803,7 +652,6 @@ const AdvancedInterviewProcessor = () => {
                 </button>
               </div>
               
-              {/* API Status */}
               <div className="mt-2">
                 {apiStatus === 'connected' && (
                   <div className="text-green-600 text-sm">✅ API Connected Successfully</div>
@@ -814,7 +662,6 @@ const AdvancedInterviewProcessor = () => {
               </div>
             </div>
 
-            {/* Translation Toggle */}
             <div className="mb-4">
               <label className="flex items-center">
                 <input
@@ -827,7 +674,6 @@ const AdvancedInterviewProcessor = () => {
               </label>
             </div>
 
-            {/* File Upload */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Audio File
@@ -846,14 +692,12 @@ const AdvancedInterviewProcessor = () => {
               )}
             </div>
 
-            {/* Error Message */}
             {errorMessage && (
               <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
                 {errorMessage}
               </div>
             )}
 
-            {/* Process Button */}
             <button
               onClick={processAudioFile}
               disabled={!audioFile || apiStatus !== 'connected' || processing}
@@ -944,7 +788,6 @@ const AdvancedInterviewProcessor = () => {
               </button>
             </div>
 
-            {/* CSV Data Preview */}
             {showCsvData && (
               <div className="bg-white border rounded-lg p-4">
                 <h3 className="font-semibold mb-2">Enhanced CSV Data Preview</h3>
@@ -957,7 +800,6 @@ const AdvancedInterviewProcessor = () => {
               </div>
             )}
 
-            {/* Sample Results */}
             {processedInsights.length > 0 && (
               <div className="bg-white border rounded-lg p-4">
                 <h3 className="font-semibold mb-4">Sample Enhanced Results</h3>
