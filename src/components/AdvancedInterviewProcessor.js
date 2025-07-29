@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 
 const AdvancedInterviewProcessor = () => {
-  // State management
   const [audioFile, setAudioFile] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [step, setStep] = useState(1);
@@ -13,16 +12,26 @@ const AdvancedInterviewProcessor = () => {
   const [csvContent, setCsvContent] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [translationEnabled, setTranslationEnabled] = useState(false);
+  
+  // NEW ML FEATURES
   const [mlMode, setMlMode] = useState(false);
   const [trainingData, setTrainingData] = useState([]);
   const [modelStats, setModelStats] = useState({ interviews: 0, corrections: 0, accuracy: 0 });
-  const [storageMethod, setStorageMethod] = useState('localStorage');
+  const [mlTrainingData, setMlTrainingData] = useState({
+    transcriptionPatterns: [],
+    transformationRules: [],
+    businessAreaClassifications: [],
+    sentimentAnalysis: [],
+    companyMentions: [],
+    segmentPatterns: [],
+    lastUpdated: null,
+    version: '1.0'
+  });
   
-  // Refs
   const fileInputRef = useRef(null);
-  const correctionFileRef = useRef(null);
+  const correctionFileRef = useRef(null); // NEW
 
-  // Enhanced competency mapping with priorities for multiple suggestions
+  // Enhanced competency mapping WITH PRIORITIES for multiple suggestions
   const competencyMap = {
     "1001": { name: "Comunicación", keywords: ["comunicación", "información", "contacto", "diálogo", "transparencia"], priority: 1 },
     "1002": { name: "Diferenciación", keywords: ["diferencia", "único", "distintivo", "especial"], priority: 2 },
@@ -86,31 +95,205 @@ const AdvancedInterviewProcessor = () => {
     "american foods": { code: "DIST002", aliases: ["american", "american food"] }
   };
 
-  // ML Training Data with flexible segment handling
-  const [mlTrainingData, setMlTrainingData] = useState({
-    transcriptionPatterns: [],
-    transformationRules: [],
-    businessAreaClassifications: [],
-    sentimentAnalysis: [],
-    companyMentions: [],
-    segmentPatterns: [],
-    lastUpdated: null,
-    version: '1.1'
-  });
-
-  // Load training data on component mount
+  // NEW: Load ML training data on component mount
   useEffect(() => {
     loadPersistedTrainingData();
-  }, [storageMethod]);
+  }, []);
 
-  // Save training data whenever it changes
+  // NEW: Save training data whenever it changes
   useEffect(() => {
     if (mlTrainingData.transcriptionPatterns.length > 0) {
-      saveTrainingDataToPersistentStorage();
+      saveTrainingDataToLocalStorage();
     }
   }, [mlTrainingData]);
 
-  // Test API connection
+  // NEW: ML Training Data Management
+  const loadPersistedTrainingData = () => {
+    try {
+      const data = localStorage.getItem('interviewProcessor_mlData');
+      if (data) {
+        const parsed = JSON.parse(data);
+        setMlTrainingData(parsed);
+        updateModelStats(parsed);
+        console.log('✅ ML training data loaded from localStorage');
+      }
+    } catch (error) {
+      console.error('❌ Error loading ML training data:', error);
+    }
+  };
+
+  const saveTrainingDataToLocalStorage = () => {
+    try {
+      const serializedData = JSON.stringify({
+        ...mlTrainingData,
+        lastUpdated: new Date().toISOString()
+      });
+      localStorage.setItem('interviewProcessor_mlData', serializedData);
+      console.log('✅ ML training data saved to localStorage');
+    } catch (error) {
+      console.error('❌ Error saving ML training data:', error);
+    }
+  };
+
+  const updateModelStats = (data) => {
+    const totalPatterns = data.transcriptionPatterns.length + 
+                         data.transformationRules.length + 
+                         data.businessAreaClassifications.length + 
+                         data.sentimentAnalysis.length;
+    
+    setModelStats({
+      interviews: Math.ceil(totalPatterns / 10),
+      corrections: totalPatterns,
+      accuracy: calculateAccuracyFromData(data)
+    });
+  };
+
+  const calculateAccuracyFromData = (data) => {
+    const totalPatterns = data.transcriptionPatterns.length + 
+                         data.transformationRules.length + 
+                         data.businessAreaClassifications.length;
+    
+    if (totalPatterns === 0) return 0;
+    if (totalPatterns < 10) return 60;
+    if (totalPatterns < 50) return 75;
+    if (totalPatterns < 100) return 85;
+    return 90;
+  };
+
+  // NEW: Load corrected training data
+  const loadTrainingData = async (file) => {
+    try {
+      const text = await file.text();
+      const lines = text.split('\n');
+      const headers = lines[0].split(',').map(h => h.replace(/"/g, ''));
+      
+      const corrections = [];
+      for (let i = 1; i < lines.length; i++) {
+        if (lines[i].trim()) {
+          const values = lines[i].split(',').map(v => v.replace(/"/g, ''));
+          const correction = {};
+          headers.forEach((header, index) => {
+            correction[header] = values[index] || '';
+          });
+          corrections.push(correction);
+        }
+      }
+      
+      // Process corrections to extract learning patterns
+      const newPatterns = processCorrectionsForML(corrections);
+      
+      // Merge with existing ML data
+      setMlTrainingData(prev => ({
+        transcriptionPatterns: [...prev.transcriptionPatterns, ...newPatterns.transcriptionPatterns],
+        transformationRules: [...prev.transformationRules, ...newPatterns.transformationRules],
+        businessAreaClassifications: [...prev.businessAreaClassifications, ...newPatterns.businessAreaClassifications],
+        sentimentAnalysis: [...prev.sentimentAnalysis, ...newPatterns.sentimentAnalysis],
+        companyMentions: [...prev.companyMentions, ...newPatterns.companyMentions],
+        segmentPatterns: [...prev.segmentPatterns, ...newPatterns.segmentPatterns],
+        lastUpdated: new Date().toISOString(),
+        version: '1.0'
+      }));
+      
+      setTrainingData(prev => [...prev, ...corrections]);
+      
+      console.log(`✅ Loaded ${corrections.length} corrections for ML training`);
+      
+    } catch (error) {
+      console.error('❌ Error loading training data:', error);
+      setErrorMessage(`Failed to load training data: ${error.message}`);
+    }
+  };
+
+  // NEW: Process corrections for ML learning
+  const processCorrectionsForML = (corrections) => {
+    const newPatterns = {
+      transcriptionPatterns: [],
+      transformationRules: [],
+      businessAreaClassifications: [],
+      sentimentAnalysis: [],
+      companyMentions: [],
+      segmentPatterns: []
+    };
+
+    corrections.forEach(correction => {
+      // Extract transcription patterns
+      if (correction.original_text && correction.corrected_transcription) {
+        newPatterns.transcriptionPatterns.push({
+          original: correction.original_text,
+          corrected: correction.corrected_transcription,
+          context: correction.speaker,
+          confidence: parseFloat(correction.confidence) || 0.5,
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      // Extract transformation rules (only for Speaker_1)
+      if (correction.original_text && correction.corrected_professional_text && correction.speaker === 'Speaker_1') {
+        newPatterns.transformationRules.push({
+          original: correction.original_text,
+          transformed: correction.corrected_professional_text,
+          company: correction.respondent_company,
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      // Extract business area classifications
+      if (correction.original_text && correction.corrected_business_area_code) {
+        newPatterns.businessAreaClassifications.push({
+          text: correction.original_text,
+          businessArea: correction.corrected_business_area_code,
+          suggestedAreas: correction.corrected_suggested_business_areas || correction.corrected_business_area_code,
+          confidence: 1.0,
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      // Extract sentiment analysis
+      if (correction.original_text && correction.corrected_sentiment_code) {
+        newPatterns.sentimentAnalysis.push({
+          text: correction.original_text,
+          sentiment: correction.corrected_sentiment_code,
+          confidence: 1.0,
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      // Detect segment modifications (joins/splits)
+      if (correction.corrected_original_text && 
+          correction.corrected_original_text.length > correction.original_text.length * 1.5) {
+        newPatterns.segmentPatterns.push({
+          type: 'segment_join',
+          originalText: correction.original_text,
+          correctedText: correction.corrected_original_text,
+          timestamp: new Date().toISOString()
+        });
+      }
+      
+      if (correction.corrected_original_text && 
+          correction.corrected_original_text.includes('|SPLIT|')) {
+        const splitParts = correction.corrected_original_text.split('|SPLIT|');
+        newPatterns.segmentPatterns.push({
+          type: 'segment_split',
+          originalText: correction.original_text,
+          splitParts: splitParts,
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+
+    console.log('🧠 ML patterns extracted:', {
+      transcription: newPatterns.transcriptionPatterns.length,
+      transformation: newPatterns.transformationRules.length,
+      businessArea: newPatterns.businessAreaClassifications.length,
+      sentiment: newPatterns.sentimentAnalysis.length,
+      companies: newPatterns.companyMentions.length,
+      segments: newPatterns.segmentPatterns.length
+    });
+
+    return newPatterns;
+  };
+
+  // Test API connection (UNCHANGED)
   const testApiConnection = async () => {
     if (!apiKey) {
       setErrorMessage('Please enter your ElevenLabs API key');
@@ -145,324 +328,301 @@ const AdvancedInterviewProcessor = () => {
     }
   };
 
-  // Storage functions
-  const saveToLocalStorage = async (data) => {
-    try {
-      const serializedData = JSON.stringify({
-        ...data,
-        lastUpdated: new Date().toISOString()
-      });
-      localStorage.setItem('interviewProcessor_mlData', serializedData);
-      console.log('✅ Training data saved to localStorage');
-      return true;
-    } catch (error) {
-      console.error('❌ Error saving to localStorage:', error);
-      return false;
-    }
+  // Minimal text cleaning - preserve all content (UNCHANGED)
+  const cleanTranscriptionText = (text) => {
+    return text
+      .replace(/\s+/g, ' ')
+      .trim();
   };
 
-  const loadFromLocalStorage = async () => {
-    try {
-      const data = localStorage.getItem('interviewProcessor_mlData');
-      if (data) {
-        const parsed = JSON.parse(data);
-        console.log('✅ Training data loaded from localStorage');
-        return parsed;
+  // Improved confidence calculation (UNCHANGED)
+  const calculateImprovedConfidence = (words) => {
+    if (!words || words.length === 0) return 0.5;
+    
+    const confidences = words.map(word => {
+      if (word.logprob !== undefined && word.logprob !== null) {
+        return Math.exp(Math.max(word.logprob, -10));
       }
-      return null;
-    } catch (error) {
-      console.error('❌ Error loading from localStorage:', error);
-      return null;
-    }
-  };
-
-  const saveTrainingDataToPersistentStorage = async () => {
-    let success = false;
-    
-    switch (storageMethod) {
-      case 'localStorage':
-        success = await saveToLocalStorage(mlTrainingData);
-        break;
-      default:
-        console.warn('No storage method selected');
-    }
-    
-    return success;
-  };
-
-  const loadPersistedTrainingData = async () => {
-    let data = null;
-    
-    switch (storageMethod) {
-      case 'localStorage':
-        data = await loadFromLocalStorage();
-        break;
-      default:
-        console.warn('No storage method selected');
-    }
-    
-    if (data) {
-      setMlTrainingData(data);
-      updateModelStats(data);
-      console.log(`✅ Training data loaded from ${storageMethod}`);
-    } else {
-      console.log(`ℹ️ No existing training data found in ${storageMethod}`);
-    }
-  };
-
-  // Update model statistics
-  const updateModelStats = (data) => {
-    const totalPatterns = data.transcriptionPatterns.length + 
-                         data.transformationRules.length + 
-                         data.businessAreaClassifications.length + 
-                         data.sentimentAnalysis.length;
-    
-    setModelStats({
-      interviews: Math.ceil(totalPatterns / 10),
-      corrections: totalPatterns,
-      accuracy: calculateAccuracyFromData(data)
+      return 0.7;
     });
-  };
-
-  const calculateAccuracyFromData = (data) => {
-    const totalPatterns = data.transcriptionPatterns.length + 
-                         data.transformationRules.length + 
-                         data.businessAreaClassifications.length;
     
-    if (totalPatterns === 0) return 0;
-    if (totalPatterns < 10) return 60;
-    if (totalPatterns < 50) return 75;
-    if (totalPatterns < 100) return 85;
-    return 90;
+    const avgConfidence = confidences.reduce((sum, conf) => sum + conf, 0) / confidences.length;
+    return Math.min(avgConfidence, 1.0);
   };
 
-  // Load corrected training data
-  const loadTrainingData = async (file) => {
-    try {
-      const text = await file.text();
-      const lines = text.split('\n');
-      const headers = lines[0].split(',').map(h => h.replace(/"/g, ''));
-      
-      const corrections = [];
-      for (let i = 1; i < lines.length; i++) {
-        if (lines[i].trim()) {
-          const values = lines[i].split(',').map(v => v.replace(/"/g, ''));
-          const correction = {};
-          headers.forEach((header, index) => {
-            correction[header] = values[index] || '';
-          });
-          corrections.push(correction);
-        }
-      }
-      
-      // Process corrections to extract learning patterns
-      const newPatterns = processCorrectionsForMLEnhanced(corrections);
-      
-      // Merge with existing ML data
-      setMlTrainingData(prev => ({
-        transcriptionPatterns: [...prev.transcriptionPatterns, ...newPatterns.transcriptionPatterns],
-        transformationRules: [...prev.transformationRules, ...newPatterns.transformationRules],
-        businessAreaClassifications: [...prev.businessAreaClassifications, ...newPatterns.businessAreaClassifications],
-        sentimentAnalysis: [...prev.sentimentAnalysis, ...newPatterns.sentimentAnalysis],
-        companyMentions: [...prev.companyMentions, ...newPatterns.companyMentions],
-        segmentPatterns: [...prev.segmentPatterns, ...newPatterns.segmentPatterns],
-        lastUpdated: new Date().toISOString(),
-        version: '1.1'
-      }));
-      
-      setTrainingData(prev => [...prev, ...corrections]);
-      
-      console.log(`✅ Loaded ${corrections.length} corrections for ML training`);
-      
-      // Auto-save to persistent storage
-      setTimeout(() => saveTrainingDataToPersistentStorage(), 1000);
-      
-    } catch (error) {
-      console.error('❌ Error loading training data:', error);
-      setErrorMessage(`Failed to load training data: ${error.message}`);
-    }
+  // Time formatting (UNCHANGED)
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    const ms = Math.floor((seconds % 1) * 1000);
+    return `${mins}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`;
   };
 
-  // Enhanced correction processing with flexible segment handling
-  const processCorrectionsForMLEnhanced = (corrections) => {
-    const newPatterns = {
-      transcriptionPatterns: [],
-      transformationRules: [],
-      businessAreaClassifications: [],
-      sentimentAnalysis: [],
-      companyMentions: [],
-      segmentPatterns: []
-    };
-
-    // Group corrections by file to detect segment changes
-    const correctionsByFile = {};
-    corrections.forEach(correction => {
-      const fileName = correction.file_name;
-      if (!correctionsByFile[fileName]) {
-        correctionsByFile[fileName] = [];
-      }
-      correctionsByFile[fileName].push(correction);
-    });
-
-    // Process each file's corrections
-    Object.entries(correctionsByFile).forEach(([fileName, fileCorrections]) => {
-      console.log(`🔍 Processing ${fileCorrections.length} corrections for ${fileName}`);
-      
-      // Detect segment modifications (joins/splits)
-      const segmentModifications = detectSegmentModifications(fileCorrections);
-      newPatterns.segmentPatterns.push(...segmentModifications);
-      
-      // Process individual corrections
-      fileCorrections.forEach(correction => {
-        // Extract transcription patterns
-        if (correction.original_text && correction.corrected_transcription) {
-          newPatterns.transcriptionPatterns.push({
-            original: correction.original_text,
-            corrected: correction.corrected_transcription,
-            context: correction.speaker,
-            confidence: parseFloat(correction.confidence) || 0.5,
-            timestamp: new Date().toISOString(),
-            fileName: fileName
-          });
-        }
-
-        // Extract transformation rules
-        if (correction.original_text && correction.corrected_professional_text && correction.speaker === 'Speaker_1') {
-          newPatterns.transformationRules.push({
-            original: correction.original_text,
-            transformed: correction.corrected_professional_text,
-            company: correction.respondent_company,
-            context: extractTransformationContext(correction.original_text),
-            timestamp: new Date().toISOString(),
-            fileName: fileName
-          });
-        }
-
-        // Extract business area classifications (including multiple suggestions)
-        if (correction.original_text && correction.corrected_business_area_code) {
-          newPatterns.businessAreaClassifications.push({
-            text: correction.original_text,
-            businessArea: correction.corrected_business_area_code,
-            suggestedAreas: correction.corrected_suggested_business_areas || correction.corrected_business_area_code,
-            keywords: extractKeywords(correction.original_text),
-            confidence: 1.0,
-            timestamp: new Date().toISOString(),
-            fileName: fileName
-          });
-        }
-
-        // Extract sentiment analysis
-        if (correction.original_text && correction.corrected_sentiment_code) {
-          newPatterns.sentimentAnalysis.push({
-            text: correction.original_text,
-            sentiment: correction.corrected_sentiment_code,
-            keywords: extractSentimentKeywords(correction.original_text),
-            confidence: 1.0,
-            timestamp: new Date().toISOString(),
-            fileName: fileName
-          });
-        }
-
-        // Extract company mentions
-        if (correction.original_text && correction.corrected_subject_company_code) {
-          newPatterns.companyMentions.push({
-            text: correction.original_text,
-            company: correction.corrected_subject_company,
-            code: correction.corrected_subject_company_code,
-            context: correction.original_text.toLowerCase(),
-            timestamp: new Date().toISOString(),
-            fileName: fileName
-          });
-        }
-      });
-    });
-
-    console.log('🧠 Enhanced ML patterns extracted:', {
-      transcription: newPatterns.transcriptionPatterns.length,
-      transformation: newPatterns.transformationRules.length,
-      businessArea: newPatterns.businessAreaClassifications.length,
-      sentiment: newPatterns.sentimentAnalysis.length,
-      companies: newPatterns.companyMentions.length,
-      segments: newPatterns.segmentPatterns.length
-    });
-
-    return newPatterns;
-  };
-
-  // NEW: Detect segment modifications (joins/splits)
-  const detectSegmentModifications = (corrections) => {
-    const segmentPatterns = [];
+  // Speaker continuity with natural conversation flow (UNCHANGED - YOUR WORKING VERSION)
+  const parseApiResponseImproved = (apiResponse) => {
+    const segments = [];
     
-    // Look for patterns that suggest segment joining or splitting
-    corrections.forEach((correction, index) => {
-      // Check if this correction represents a joined segment
-      if (correction.corrected_original_text && 
-          correction.corrected_original_text.length > correction.original_text.length * 1.5) {
-        
-        segmentPatterns.push({
-          type: 'segment_join',
-          originalText: correction.original_text,
-          correctedText: correction.corrected_original_text,
-          context: {
-            speaker: correction.speaker,
-            timeRange: `${correction.start_time}-${correction.end_time}`,
-            businessArea: correction.business_area_code
-          },
-          timestamp: new Date().toISOString()
+    if (apiResponse.words && Array.isArray(apiResponse.words)) {
+      const words = apiResponse.words;
+      console.log(`Processing ${words.length} words for speaker-continuous segments`);
+      
+      // Enhanced speaker detection and continuity
+      const VERY_LONG_PAUSE = 8.0;               // Only break on very long pauses (8+ seconds)
+      const MIN_SEGMENT_DURATION = 8.0;          // Minimum 8 seconds per segment
+      const TARGET_SEGMENT_DURATION = 25.0;      // Target 25 seconds like user's example
+      const MAX_SEGMENT_DURATION = 60.0;         // Maximum 60 seconds
+      const SPEAKER_CHANGE_BUFFER = 2.0;         // Buffer to confirm real speaker changes
+      
+      let currentSegment = {
+        words: [],
+        speaker: null,
+        startTime: 0,
+        endTime: 0,
+        speakerConfidence: 0
+      };
+      
+      // Helper function to determine the most likely speaker for a segment
+      const getMostLikelySpeaker = (words) => {
+        const speakerCounts = {};
+        words.forEach(word => {
+          const speaker = word.speaker_id || 'speaker_1';
+          speakerCounts[speaker] = (speakerCounts[speaker] || 0) + 1;
         });
+        
+        // Return the speaker with the most words in this segment
+        return Object.entries(speakerCounts).reduce((a, b) => 
+          speakerCounts[a[0]] > speakerCounts[b[0]] ? a : b
+        )[0];
+      };
+      
+      // Helper function to detect if there's a real speaker change
+      const isRealSpeakerChange = (currentWords, newSpeaker, wordIndex, allWords) => {
+        if (currentWords.length === 0) return false;
+        
+        const currentSpeaker = getMostLikelySpeaker(currentWords);
+        if (currentSpeaker === newSpeaker) return false;
+        
+        // Look ahead to see if this speaker change is sustained
+        let sustainedCount = 0;
+        for (let i = wordIndex; i < Math.min(wordIndex + 10, allWords.length); i++) {
+          if ((allWords[i].speaker_id || 'speaker_1') === newSpeaker) {
+            sustainedCount++;
+          }
+        }
+        
+        // Only consider it a real speaker change if sustained for at least 5 words
+        return sustainedCount >= 5;
+      };
+      
+      for (let i = 0; i < words.length; i++) {
+        const word = words[i];
+        const currentSpeaker = word.speaker_id || 'speaker_1';
+        const wordStart = word.start || 0;
+        const wordEnd = word.end || wordStart + 0.5;
+        
+        // Check for segmentation conditions
+        const veryLongPause = currentSegment.words.length > 0 && 
+                             (wordStart - currentSegment.endTime) > VERY_LONG_PAUSE;
+        
+        const segmentTooLong = currentSegment.words.length > 0 &&
+                              (wordEnd - currentSegment.startTime) > MAX_SEGMENT_DURATION;
+        
+        // Real speaker change detection
+        const realSpeakerChange = isRealSpeakerChange(currentSegment.words, currentSpeaker, i, words);
+        
+        // Natural conversation break: Complete thought + good duration
+        const naturalBreak = currentSegment.words.length > 0 &&
+                            (wordEnd - currentSegment.startTime) >= TARGET_SEGMENT_DURATION &&
+                            word.text && 
+                            (/[.!?]$/.test(word.text.trim()) || 
+                             /\b(¿verdad\?|¿sí\?|¿no\?|entonces|bueno|ok|okay)\b/i.test(word.text)) &&
+                            (wordStart - currentSegment.endTime) > 1.0; // Plus a small pause
+        
+        // ONLY create new segment if we have a clear reason AND minimum duration
+        const shouldBreak = (realSpeakerChange || veryLongPause || segmentTooLong || naturalBreak) && 
+                           currentSegment.words.length > 0 &&
+                           (currentSegment.endTime - currentSegment.startTime) >= MIN_SEGMENT_DURATION;
+        
+        if (shouldBreak) {
+          // Determine the most likely speaker for this segment
+          const segmentSpeaker = getMostLikelySpeaker(currentSegment.words);
+          
+          // Create segment with ALL content preserved
+          const segmentText = currentSegment.words.map(w => w.text).join(' ');
+          const cleanedText = cleanTranscriptionText(segmentText);
+          const avgConfidence = calculateImprovedConfidence(currentSegment.words);
+          
+          // Accept ALL segments - no filtering
+          if (cleanedText.trim().length > 0) {
+            segments.push({
+              start_time: formatTime(currentSegment.startTime),
+              end_time: formatTime(currentSegment.endTime),
+              speaker: segmentSpeaker === 'speaker_1' ? 'Speaker_1' : 'Speaker_0',
+              confidence: avgConfidence,
+              text: cleanedText
+            });
+            
+            const duration = currentSegment.endTime - currentSegment.startTime;
+            const breakReason = realSpeakerChange ? 'Speaker Change' : 
+                               veryLongPause ? 'Long Pause' : 
+                               segmentTooLong ? 'Too Long' : 'Natural Break';
+            
+            console.log(`Created segment: ${formatTime(currentSegment.startTime)} - ${formatTime(currentSegment.endTime)} (${duration.toFixed(1)}s) [${breakReason}] Speaker: ${segmentSpeaker}`);
+          }
+          
+          // Start new segment
+          currentSegment = {
+            words: [word],
+            speaker: currentSpeaker,
+            startTime: wordStart,
+            endTime: wordEnd,
+            speakerConfidence: 1
+          };
+        } else {
+          // Add word to current segment
+          currentSegment.words.push(word);
+          if (currentSegment.words.length === 1) {
+            currentSegment.speaker = currentSpeaker;
+            currentSegment.startTime = wordStart;
+          }
+          currentSegment.endTime = wordEnd;
+        }
       }
       
-      // Check if this represents content that should be split
-      if (correction.corrected_original_text && 
-          correction.corrected_original_text.includes('|SPLIT|')) {
+      // ALWAYS add the final segment
+      if (currentSegment.words.length > 0) {
+        const segmentSpeaker = getMostLikelySpeaker(currentSegment.words);
+        const segmentText = currentSegment.words.map(w => w.text).join(' ');
+        const cleanedText = cleanTranscriptionText(segmentText);
+        const avgConfidence = calculateImprovedConfidence(currentSegment.words);
         
-        const splitParts = correction.corrected_original_text.split('|SPLIT|');
-        segmentPatterns.push({
-          type: 'segment_split',
-          originalText: correction.original_text,
-          splitParts: splitParts,
-          context: {
-            speaker: correction.speaker,
-            timeRange: `${correction.start_time}-${correction.end_time}`,
-            businessArea: correction.business_area_code
-          },
-          timestamp: new Date().toISOString()
+        segments.push({
+          start_time: formatTime(currentSegment.startTime),
+          end_time: formatTime(currentSegment.endTime),
+          speaker: segmentSpeaker === 'speaker_1' ? 'Speaker_1' : 'Speaker_0',
+          confidence: avgConfidence,
+          text: cleanedText
         });
+        
+        const duration = currentSegment.endTime - currentSegment.startTime;
+        console.log(`Final segment: ${formatTime(currentSegment.startTime)} - ${formatTime(currentSegment.endTime)} (${duration.toFixed(1)}s) Speaker: ${segmentSpeaker}`);
       }
-    });
+      
+      console.log(`✅ Created ${segments.length} speaker-continuous segments`);
+      
+      // Log segment analysis for debugging
+      segments.forEach((segment, index) => {
+        const startSeconds = parseTimeToSeconds(segment.start_time);
+        const endSeconds = parseTimeToSeconds(segment.end_time);
+        const duration = endSeconds - startSeconds;
+        console.log(`Segment ${index + 1}: ${segment.start_time} - ${segment.end_time} (${duration.toFixed(1)}s) ${segment.speaker} - "${segment.text.substring(0, 80)}..."`);
+      });
+      
+      // Check for speaker continuity issues
+      let speakerIssues = 0;
+      for (let i = 1; i < segments.length; i++) {
+        const prevSpeaker = segments[i-1].speaker;
+        const currSpeaker = segments[i].speaker;
+        const prevEnd = parseTimeToSeconds(segments[i-1].end_time);
+        const currStart = parseTimeToSeconds(segments[i].start_time);
+        const gap = currStart - prevEnd;
+        
+        if (prevSpeaker === currSpeaker && gap < 3.0) {
+          speakerIssues++;
+          console.warn(`⚠️ Potential speaker continuity issue: Segments ${i} and ${i+1} are same speaker (${currSpeaker}) with only ${gap.toFixed(1)}s gap`);
+        }
+      }
+      
+      if (speakerIssues > 0) {
+        console.warn(`⚠️ Found ${speakerIssues} potential speaker continuity issues that could be merged`);
+      }
+      
+      return segments;
+    }
     
-    return segmentPatterns;
-  };
-
-  // Helper functions for ML processing
-  const extractTransformationContext = (text) => {
-    const contexts = [];
-    if (/\byo\b/gi.test(text)) contexts.push('first_person');
-    if (/\bnosotros\b/gi.test(text)) contexts.push('plural_first_person');
-    if (/\bcreo\b/gi.test(text)) contexts.push('opinion');
-    if (/\bpienso\b/gi.test(text)) contexts.push('thought');
-    if (/\bsiento\b/gi.test(text)) contexts.push('feeling');
-    return contexts;
-  };
-
-  const extractKeywords = (text) => {
-    const words = text.toLowerCase().split(/\s+/);
-    return words.filter(word => word.length > 3 && !/\b(el|la|los|las|de|del|en|con|por|para|que|es|son|está|están)\b/.test(word));
-  };
-
-  const extractSentimentKeywords = (text) => {
-    const positiveWords = text.match(/\b(buen|excelen|positiv|fuerte|eficien|destaca)\w*/gi) || [];
-    const negativeWords = text.match(/\b(problem|dificult|complic|falta|malo|deficien)\w*/gi) || [];
-    const actionWords = text.match(/\b(necesit|debe|requier|important|urgent|tiene que)\w*/gi) || [];
+    // Fallback for simple text response
+    if (apiResponse.text) {
+      const sentences = apiResponse.text.split(/[.!?]+/).filter(s => s.trim().length > 5);
+      
+      sentences.forEach((sentence, index) => {
+        const startTime = index * 20; // 20-second segments
+        const endTime = (index + 1) * 20;
+        
+        segments.push({
+          start_time: formatTime(startTime),
+          end_time: formatTime(endTime),
+          speaker: index % 2 === 0 ? 'Speaker_1' : 'Speaker_0',
+          confidence: apiResponse.language_probability || 0.75,
+          text: sentence.trim()
+        });
+      });
+      
+      return segments;
+    }
     
-    return {
-      positive: positiveWords,
-      negative: negativeWords,
-      action: actionWords
-    };
+    throw new Error('Unexpected API response format');
   };
 
-  // Enhanced auto-tagging with multiple business area suggestions
+  // Helper function to parse time to seconds (UNCHANGED)
+  const parseTimeToSeconds = (timeString) => {
+    const parts = timeString.split(':');
+    const minutes = parseInt(parts[0]);
+    const secondsParts = parts[1].split('.');
+    const seconds = parseInt(secondsParts[0]);
+    const milliseconds = parseInt(secondsParts[1] || 0);
+    return minutes * 60 + seconds + milliseconds / 1000;
+  };
+
+  // Improved transcription function (UNCHANGED)
+  const transcribeWithElevenLabsImproved = async (file) => {
+    try {
+      setProgress(10);
+      
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('model_id', 'scribe_v1');
+      formData.append('diarize', 'true');
+      formData.append('num_speakers', '2');
+      formData.append('tag_audio_events', 'false');
+      formData.append('timestamps_granularity', 'word');
+      formData.append('response_format', 'json');
+      
+      setProgress(20);
+
+      const response = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
+        method: 'POST',
+        headers: {
+          'xi-api-key': apiKey
+        },
+        body: formData
+      });
+
+      setProgress(60);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`API error ${response.status}: ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log('✅ ElevenLabs transcription completed');
+      console.log('API Response structure:', {
+        hasWords: !!result.words,
+        wordCount: result.words?.length || 0,
+        hasText: !!result.text,
+        hasSpeakers: result.words?.some(w => w.speaker_id !== undefined)
+      });
+
+      setProgress(80);
+      return parseApiResponseImproved(result);
+
+    } catch (error) {
+      console.error('❌ Transcription error:', error);
+      throw error;
+    }
+  };
+
+  // NEW: Enhanced auto-tagging with multiple business area suggestions
   const autoTagEnhancedMultiple = (text, speaker) => {
     // ALWAYS mark interviewer segments as interviewer
     if (speaker === "Speaker_0") {
@@ -513,13 +673,15 @@ const AdvancedInterviewProcessor = () => {
       score += priorityBonus;
       
       // Check learned patterns from ML
-      const learnedPatterns = mlTrainingData.businessAreaClassifications.filter(pattern => 
-        pattern.businessArea === code && 
-        calculateTextSimilarity(lowerText, pattern.text.toLowerCase()) > 0.6
-      );
-      
-      if (learnedPatterns.length > 0) {
-        score += learnedPatterns.length * 0.5; // Boost from ML learning
+      if (mlMode && mlTrainingData.businessAreaClassifications.length > 0) {
+        const learnedPatterns = mlTrainingData.businessAreaClassifications.filter(pattern => 
+          pattern.businessArea === code && 
+          calculateTextSimilarity(lowerText, pattern.text.toLowerCase()) > 0.6
+        );
+        
+        if (learnedPatterns.length > 0) {
+          score += learnedPatterns.length * 0.5; // Boost from ML learning
+        }
       }
       
       if (score > 0) {
@@ -586,7 +748,7 @@ const AdvancedInterviewProcessor = () => {
     };
   };
 
-  // Helper function for text similarity
+  // NEW: Helper function for text similarity
   const calculateTextSimilarity = (text1, text2) => {
     const words1 = new Set(text1.toLowerCase().split(/\s+/));
     const words2 = new Set(text2.toLowerCase().split(/\s+/));
@@ -597,8 +759,8 @@ const AdvancedInterviewProcessor = () => {
     return intersection.size / union.size;
   };
 
-  // Enhanced subject company detection
-  const detectSubjectCompanyEnhanced = (text) => {
+  // Enhanced subject company detection (UNCHANGED)
+  const detectSubjectCompany = (text) => {
     const lowerText = text.toLowerCase();
     
     for (const [company, data] of Object.entries(supplierCodes)) {
@@ -648,8 +810,8 @@ const AdvancedInterviewProcessor = () => {
     return nameMap[name] || name;
   };
 
-  // Country detection
-  const detectCountriesEnhanced = (text) => {
+  // Country detection (UNCHANGED)
+  const detectCountries = (text) => {
     const countries = ["Guatemala", "El Salvador", "Honduras", "Costa Rica", "Nicaragua", "Panamá"];
     const lowerText = text.toLowerCase();
     const mentioned = countries.filter(country => 
@@ -658,8 +820,8 @@ const AdvancedInterviewProcessor = () => {
     return mentioned.length > 0 ? mentioned : ["Regional"];
   };
 
-  // Enhanced filename parsing
-  const extractCompanyInfoImproved = (filename) => {
+  // Enhanced filename parsing (UNCHANGED)
+  const extractCompanyInfo = (filename) => {
     console.log('Parsing filename:', filename);
     
     const nameWithoutExt = filename.replace(/\.(mp4|mp3|wav|m4a)$/i, '');
@@ -704,8 +866,8 @@ const AdvancedInterviewProcessor = () => {
     return result;
   };
 
-  // Professional transformation for interviewee responses only
-  const transformToProfessionalImproved = (text, speaker, company) => {
+  // Professional transformation for interviewee responses only (UNCHANGED)
+  const transformToProfessional = (text, speaker, company) => {
     // Only transform interviewee responses (Speaker_1)
     if (speaker === "Speaker_0") {
       // For interviewer, just clean up spacing
@@ -729,7 +891,7 @@ const AdvancedInterviewProcessor = () => {
       }
     }
     
-    // Enhanced filler word removal (20+ patterns)
+    // Enhanced filler word removal
     const fillerPatterns = [
       /\b(eh|ah|um|mm|hmm|este|esto|pues|bueno|o sea|como que|digamos|verdad|no sé|sabes|entonces|así|como|tipo)\b/gi,
       /\b(y y|que que|es es|la la|el el|de de|en en|con con|por por|para para)\b/gi,
@@ -776,21 +938,6 @@ const AdvancedInterviewProcessor = () => {
       transformed = transformed.replace(pattern, replacement);
     });
     
-    // Natural language variations to avoid repetitive phrasing
-    const variations = [
-      { pattern: /\b${company} considera que\b/gi, alternatives: [`${company} evalúa que`, `En ${company} se considera que`, `${company} determina que`] },
-      { pattern: /\bexcelente\b/gi, alternatives: ['sobresaliente', 'destacado', 'superior'] },
-      { pattern: /\boportunidades de mejora\b/gi, alternatives: ['áreas de desarrollo', 'aspectos a optimizar', 'puntos de mejora'] }
-    ];
-    
-    // Apply variations randomly to avoid repetition
-    variations.forEach(({ pattern, alternatives }) => {
-      if (pattern.test(transformed)) {
-        const randomAlternative = alternatives[Math.floor(Math.random() * alternatives.length)];
-        transformed = transformed.replace(pattern, randomAlternative);
-      }
-    });
-    
     // Grammar and sentence structure improvements
     transformed = transformed
       .replace(/\s+/g, ' ')
@@ -817,7 +964,7 @@ const AdvancedInterviewProcessor = () => {
     return transformed;
   };
 
-  // Apply ML transformation rule
+  // NEW: Apply ML transformation rule
   const applyTransformationRule = (text, rule) => {
     // Simple pattern matching and replacement based on learned rules
     const similarity = calculateTextSimilarity(text.toLowerCase(), rule.original.toLowerCase());
@@ -841,7 +988,7 @@ const AdvancedInterviewProcessor = () => {
     return text;
   };
 
-  // Extract key transformations from ML rule
+  // NEW: Extract key transformations from ML rule
   const extractKeyTransformations = (rule) => {
     const transformations = [];
     
@@ -864,320 +1011,8 @@ const AdvancedInterviewProcessor = () => {
     return transformations;
   };
 
-  // ACTUAL ELEVENLABS TRANSCRIPTION FUNCTION (restored from our previous work)
-  const transcribeWithElevenLabsEnhanced = async (audioFile) => {
-    console.log('🎙️ Starting enhanced ElevenLabs transcription...');
-    
-    try {
-      const formData = new FormData();
-      formData.append('audio', audioFile);
-      formData.append('model_id', 'eleven_multilingual_v2');
-      formData.append('language_code', 'es');
-      formData.append('response_format', 'verbose_json');
-      formData.append('enable_speaker_diarization', 'true');
-      formData.append('num_speakers', '2');
-      
-      // Enhanced parameters for better accuracy
-      formData.append('stability', '0.5');
-      formData.append('similarity_boost', '0.8');
-      formData.append('style', '0.2');
-      formData.append('use_speaker_boost', 'true');
-
-      const response = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
-        method: 'POST',
-        headers: {
-          'xi-api-key': apiKey
-        },
-        body: formData
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`ElevenLabs API error: ${response.status} - ${errorText}`);
-      }
-
-      const result = await response.json();
-      console.log('✅ ElevenLabs transcription completed:', result);
-
-      // Enhanced processing of transcription results
-      return processTranscriptionResultsEnhanced(result);
-
-    } catch (error) {
-      console.error('❌ ElevenLabs transcription error:', error);
-      throw error;
-    }
-  };
-
-  // Enhanced transcription results processing (restored from our previous work)
-  const processTranscriptionResultsEnhanced = (result) => {
-    console.log('📝 Processing enhanced transcription results...');
-    
-    if (!result.words || !Array.isArray(result.words)) {
-      console.warn('⚠️ No words array found in transcription result');
-      return [];
-    }
-
-    const words = result.words;
-    console.log(`📊 Processing ${words.length} words from transcription`);
-
-    // Much more conservative segmentation for natural conversation flow
-    const segments = [];
-    let currentSegment = {
-      words: [],
-      speaker: null,
-      start_time: null,
-      end_time: null
-    };
-
-    for (let i = 0; i < words.length; i++) {
-      const word = words[i];
-      
-      // Skip words without proper timing or text
-      if (!word.start || !word.end || !word.word || word.word.trim() === '') {
-        continue;
-      }
-
-      // Determine speaker (with better fallback)
-      const speaker = word.speaker !== undefined ? `Speaker_${word.speaker}` : 
-                    (currentSegment.speaker || 'Speaker_0');
-
-      // Initialize segment if empty
-      if (currentSegment.words.length === 0) {
-        currentSegment.speaker = speaker;
-        currentSegment.start_time = word.start;
-      }
-
-      // Check for segment break conditions (MUCH more conservative)
-      const shouldBreak = checkSegmentBreakEnhanced(currentSegment, word, words, i);
-
-      if (shouldBreak && currentSegment.words.length > 0) {
-        // Finalize current segment
-        currentSegment.end_time = currentSegment.words[currentSegment.words.length - 1].end;
-        segments.push(createSegmentFromWords(currentSegment));
-        
-        // Start new segment
-        currentSegment = {
-          words: [word],
-          speaker: speaker,
-          start_time: word.start,
-          end_time: null
-        };
-      } else {
-        // Add word to current segment
-        currentSegment.words.push(word);
-        currentSegment.end_time = word.end;
-      }
-    }
-
-    // Add final segment
-    if (currentSegment.words.length > 0) {
-      currentSegment.end_time = currentSegment.words[currentSegment.words.length - 1].end;
-      segments.push(createSegmentFromWords(currentSegment));
-    }
-
-    console.log(`✅ Created ${segments.length} enhanced segments with natural conversation flow`);
-    
-    // Log segment details for debugging
-    segments.forEach((segment, index) => {
-      console.log(`Segment ${index + 1}: ${segment.start_time} - ${segment.end_time} (${segment.speaker}) - ${segment.text.substring(0, 50)}...`);
-    });
-
-    return segments;
-  };
-
-  // Enhanced segment break detection (much more conservative)
-  const checkSegmentBreakEnhanced = (currentSegment, word, allWords, index) => {
-    const speaker = word.speaker !== undefined ? `Speaker_${word.speaker}` : currentSegment.speaker;
-    
-    // 1. ONLY break on confirmed, sustained speaker changes
-    if (speaker !== currentSegment.speaker) {
-      // Look ahead to confirm this is a real speaker change (not just a blip)
-      const lookAheadWords = 5;
-      let confirmedSpeakerChange = true;
-      
-      for (let j = index + 1; j < Math.min(index + lookAheadWords, allWords.length); j++) {
-        const nextWord = allWords[j];
-        const nextSpeaker = nextWord.speaker !== undefined ? `Speaker_${nextWord.speaker}` : currentSegment.speaker;
-        
-        if (nextSpeaker === currentSegment.speaker) {
-          confirmedSpeakerChange = false;
-          break;
-        }
-      }
-      
-      if (confirmedSpeakerChange) {
-        console.log(`🔄 Confirmed speaker change: ${currentSegment.speaker} → ${speaker} at ${word.start}`);
-        return true;
-      }
-    }
-
-    // 2. Very long pauses (8+ seconds) - only for natural conversation breaks
-    if (currentSegment.words.length > 0) {
-      const lastWord = currentSegment.words[currentSegment.words.length - 1];
-      const timeSinceLastWord = word.start - lastWord.end;
-      
-      if (timeSinceLastWord > 8.0) {
-        console.log(`⏸️ Long pause detected: ${timeSinceLastWord.toFixed(2)}s at ${word.start}`);
-        return true;
-      }
-    }
-
-    // 3. Maximum segment duration (60 seconds) - only if at natural break
-    if (currentSegment.words.length > 0) {
-      const segmentDuration = word.end - currentSegment.start_time;
-      
-      if (segmentDuration > 60.0) {
-        // Only break if we're at a natural pause (2+ seconds)
-        const lastWord = currentSegment.words[currentSegment.words.length - 1];
-        const timeSinceLastWord = word.start - lastWord.end;
-        
-        if (timeSinceLastWord > 2.0) {
-          console.log(`⏱️ Max duration reached with natural break: ${segmentDuration.toFixed(2)}s at ${word.start}`);
-          return true;
-        }
-      }
-    }
-
-    // 4. Target duration (25 seconds) with natural break and complete thought
-    if (currentSegment.words.length > 0) {
-      const segmentDuration = word.end - currentSegment.start_time;
-      
-      if (segmentDuration > 25.0) {
-        const lastWord = currentSegment.words[currentSegment.words.length - 1];
-        const timeSinceLastWord = word.start - lastWord.end;
-        
-        // Check for natural break (small pause) and complete thought
-        if (timeSinceLastWord > 1.0 && isCompleteThought(currentSegment.words)) {
-          console.log(`🎯 Target duration with complete thought: ${segmentDuration.toFixed(2)}s at ${word.start}`);
-          return true;
-        }
-      }
-    }
-
-    return false;
-  };
-
-  // Check if current segment represents a complete thought
-  const isCompleteThought = (words) => {
-    if (words.length < 5) return false; // Too short to be complete
-    
-    const text = words.map(w => w.word).join(' ').toLowerCase();
-    
-    // Look for sentence-ending patterns
-    const sentenceEnders = ['.', '?', '!', 'verdad', 'sí', 'no', 'entonces', 'bueno'];
-    const hasEnder = sentenceEnders.some(ender => text.includes(ender));
-    
-    // Look for complete question or statement patterns
-    const questionStarters = ['qué', 'cómo', 'cuándo', 'dónde', 'por qué', 'para qué'];
-    const statementStarters = ['yo', 'nosotros', 'ellos', 'la empresa', 'el proveedor'];
-    
-    const hasCompletePattern = questionStarters.some(starter => text.includes(starter)) ||
-                              statementStarters.some(starter => text.includes(starter));
-    
-    return hasEnder || hasCompletePattern;
-  };
-
-  // Create segment from words array
-  const createSegmentFromWords = (segmentData) => {
-    const words = segmentData.words;
-    
-    // Combine words into text
-    let text = words.map(word => word.word).join(' ');
-    
-    // Enhanced text cleaning to remove artifacts
-    text = cleanTranscriptionTextEnhanced(text);
-    
-    // Calculate confidence from logprob values
-    const confidence = calculateSegmentConfidenceEnhanced(words);
-    
-    // Format timestamps
-    const startTime = formatTimestamp(segmentData.start_time);
-    const endTime = formatTimestamp(segmentData.end_time);
-    
-    const segment = {
-      start_time: startTime,
-      end_time: endTime,
-      speaker: segmentData.speaker,
-      confidence: confidence,
-      text: text,
-      word_count: words.length,
-      duration: segmentData.end_time - segmentData.start_time
-    };
-    
-    console.log(`📝 Created segment: ${startTime}-${endTime} (${segmentData.speaker}) ${words.length} words, conf: ${confidence.toFixed(2)}`);
-    
-    return segment;
-  };
-
-  // Enhanced text cleaning to remove transcription artifacts
-  const cleanTranscriptionTextEnhanced = (text) => {
-    let cleaned = text;
-    
-    // Remove filename artifacts that sometimes appear in transcription
-    cleaned = cleaned.replace(/\b(CAM|HO|2025|Hugo|Mejía|Walmart|R105|mp4|mp3|wav|m4a)\b/gi, '');
-    
-    // Remove excessive spacing and punctuation artifacts
-    cleaned = cleaned.replace(/\s{2,}/g, ' ');
-    cleaned = cleaned.replace(/[,]{2,}/g, ',');
-    cleaned = cleaned.replace(/[.]{2,}/g, '.');
-    cleaned = cleaned.replace(/\s*,\s*/g, ', ');
-    cleaned = cleaned.replace(/\s*\.\s*/g, '. ');
-    
-    // Remove standalone numbers that are likely artifacts
-    cleaned = cleaned.replace(/\b\d{1,4}\b/g, '');
-    
-    // Remove common transcription artifacts
-    cleaned = cleaned.replace(/\b(uh|um|ah|eh)\b/gi, '');
-    
-    // Clean up spacing again
-    cleaned = cleaned.replace(/\s{2,}/g, ' ').trim();
-    
-    return cleaned;
-  };
-
-  // Enhanced confidence calculation using logprob values
-  const calculateSegmentConfidenceEnhanced = (words) => {
-    if (!words || words.length === 0) return 0.5;
-    
-    // Use logprob values if available (ElevenLabs provides these)
-    const logprobValues = words
-      .filter(word => word.logprob !== undefined && word.logprob !== null)
-      .map(word => word.logprob);
-    
-    if (logprobValues.length > 0) {
-      // Convert logprob to confidence (logprob is typically negative)
-      const avgLogprob = logprobValues.reduce((sum, val) => sum + val, 0) / logprobValues.length;
-      
-      // Convert to 0-1 confidence scale (logprob of 0 = 100% confidence, -10 = ~0% confidence)
-      const confidence = Math.max(0, Math.min(1, (avgLogprob + 10) / 10));
-      
-      return confidence;
-    }
-    
-    // Fallback: estimate confidence based on word characteristics
-    let confidenceScore = 0.7; // Base confidence
-    
-    // Adjust based on word length (longer words typically more confident)
-    const avgWordLength = words.reduce((sum, word) => sum + word.word.length, 0) / words.length;
-    if (avgWordLength > 5) confidenceScore += 0.1;
-    if (avgWordLength < 3) confidenceScore -= 0.1;
-    
-    // Adjust based on segment length (very short or very long segments less confident)
-    if (words.length < 3) confidenceScore -= 0.2;
-    if (words.length > 50) confidenceScore -= 0.1;
-    
-    return Math.max(0.1, Math.min(0.95, confidenceScore));
-  };
-
-  // Format timestamp to MM:SS.mmm format
-  const formatTimestamp = (seconds) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toFixed(3).padStart(6, '0')}`;
-  };
-
-  // MAIN PROCESSING FUNCTION (restored with all our improvements)
-  const processAudioFileEnhanced = async () => {
+  // MAIN PROCESSING FUNCTION (ENHANCED with ML)
+  const processAudioFile = async () => {
     if (!audioFile || !apiKey || apiStatus !== 'connected') {
       setErrorMessage('Please select file, enter API key, and test connection first');
       return;
@@ -1189,31 +1024,31 @@ const AdvancedInterviewProcessor = () => {
     setErrorMessage('');
 
     try {
-      console.log('🎙️ Starting enhanced transcription with multiple business areas...');
+      console.log('🎙️ Starting enhanced transcription with ML features...');
       setProgress(10);
 
-      // ACTUAL TRANSCRIPTION (not mock!)
-      const transcriptionSegments = await transcribeWithElevenLabsEnhanced(audioFile);
+      // ACTUAL TRANSCRIPTION (YOUR WORKING VERSION)
+      const transcriptionSegments = await transcribeWithElevenLabsImproved(audioFile);
       setProgress(40);
 
       console.log('📝 Processing with enhanced multi-area tagging...');
       setProgress(50);
 
-      const companyInfo = extractCompanyInfoImproved(audioFile.name);
+      const companyInfo = extractCompanyInfo(audioFile.name);
       const insights = [];
 
       for (const [index, segment] of transcriptionSegments.entries()) {
         // Use enhanced tagging with multiple business areas
         const tags = autoTagEnhancedMultiple(segment.text, segment.speaker);
         
-        const professionalText = transformToProfessionalImproved(
+        const professionalText = transformToProfessional(
           segment.text, 
           segment.speaker, 
           companyInfo.company
         );
         
-        const countries = detectCountriesEnhanced(segment.text);
-        const subjectCompanyResult = detectSubjectCompanyEnhanced(segment.text);
+        const countries = detectCountries(segment.text);
+        const subjectCompanyResult = detectSubjectCompany(segment.text);
         
         insights.push({
           file_name: audioFile.name,
@@ -1257,7 +1092,7 @@ const AdvancedInterviewProcessor = () => {
       setProgress(90);
 
       console.log('📊 Generating enhanced CSV with multiple business areas...');
-      generateCsvContentEnhanced(insights);
+      generateCsvContent(insights);
       setProgress(100);
       setStep(3);
 
@@ -1270,7 +1105,7 @@ const AdvancedInterviewProcessor = () => {
   };
 
   // Enhanced CSV generation with multiple business areas
-  const generateCsvContentEnhanced = (insights) => {
+  const generateCsvContent = (insights) => {
     const headers = [
       'file_name', 'start_time', 'end_time', 'speaker', 'confidence',
       'original_text', 'professional_text', 'english_translation',
@@ -1310,7 +1145,7 @@ const AdvancedInterviewProcessor = () => {
     setProcessing(false);
   };
 
-  // Download CSV
+  // Download CSV (UNCHANGED)
   const downloadCsv = () => {
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -1324,7 +1159,7 @@ const AdvancedInterviewProcessor = () => {
     document.body.removeChild(a);
   };
 
-  // Reset function
+  // Reset function (UNCHANGED)
   const resetProcessor = () => {
     setAudioFile(null);
     setProcessing(false);
@@ -1343,47 +1178,10 @@ const AdvancedInterviewProcessor = () => {
     <div className="max-w-6xl mx-auto p-6 bg-white">
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-lg mb-6">
         <h1 className="text-3xl font-bold mb-2">🧠 Enhanced Interview Processor</h1>
-        <p className="text-blue-100">Multiple Business Areas + Flexible Segment Handling + REAL Transcription</p>
+        <p className="text-blue-100">Your Working Transcription + ML Training + Multiple Business Areas</p>
       </div>
 
-      {/* Enhanced Features Info */}
-      <div className="bg-gradient-to-r from-green-50 to-blue-50 p-6 rounded-lg mb-6">
-        <h2 className="text-xl font-semibold mb-4 text-gray-800">🆕 New Features</h2>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-white p-4 rounded-lg border">
-            <h3 className="font-semibold text-green-600 mb-2">📊 Multiple Business Areas</h3>
-            <ul className="text-sm text-gray-600 space-y-1">
-              <li>• Primary business area (highest confidence)</li>
-              <li>• Up to 3 suggested areas (code1:code2:code3)</li>
-              <li>• Balanced reporting across all practices</li>
-              <li>• Prevents overuse of common areas</li>
-            </ul>
-          </div>
-          
-          <div className="bg-white p-4 rounded-lg border">
-            <h3 className="font-semibold text-blue-600 mb-2">🔧 Flexible Segment Handling</h3>
-            <ul className="text-sm text-gray-600 space-y-1">
-              <li>• Join segments: Combine text in corrected CSV</li>
-              <li>• Split segments: Use |SPLIT| marker</li>
-              <li>• ML learns from your segment preferences</li>
-              <li>• No need for exact timestamps</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      {/* Segment Correction Guide */}
-      <div className="bg-yellow-50 p-4 rounded-lg mb-6">
-        <h3 className="font-semibold text-yellow-800 mb-2">💡 Segment Correction Tips</h3>
-        <div className="text-sm text-yellow-700 space-y-2">
-          <div><strong>To Join Segments:</strong> Simply combine the text in the corrected_original_text field</div>
-          <div><strong>To Split Segments:</strong> Use |SPLIT| marker where you want to break: "First part |SPLIT| Second part"</div>
-          <div><strong>ML Learning:</strong> The system learns your segmentation preferences automatically</div>
-        </div>
-      </div>
-
-      {/* ML Training Section */}
+      {/* NEW: ML Training Section */}
       <div className="bg-gradient-to-r from-green-50 to-blue-50 p-6 rounded-lg mb-6">
         <h2 className="text-xl font-semibold mb-4 text-gray-800">🧠 Machine Learning Training</h2>
         
@@ -1443,7 +1241,18 @@ const AdvancedInterviewProcessor = () => {
         )}
       </div>
 
-      {/* Step 1: Setup */}
+      {/* NEW: Multiple Business Areas Info */}
+      <div className="bg-yellow-50 p-4 rounded-lg mb-6">
+        <h3 className="font-semibold text-yellow-800 mb-2">📊 Multiple Business Areas Feature</h3>
+        <div className="text-sm text-yellow-700 space-y-2">
+          <div><strong>Primary Area:</strong> Highest confidence business area classification</div>
+          <div><strong>Suggested Areas:</strong> Up to 3 relevant areas (format: "1006:1001:1015")</div>
+          <div><strong>Balanced Reporting:</strong> Prevents overuse of common practices, ensures all 29 areas get coverage</div>
+          <div><strong>Segment Corrections:</strong> Join segments by combining text, split using |SPLIT| marker</div>
+        </div>
+      </div>
+
+      {/* Step 1: Setup (ENHANCED) */}
       {step === 1 && (
         <div className="space-y-6">
           <div className="bg-gray-50 p-6 rounded-lg">
@@ -1523,17 +1332,17 @@ const AdvancedInterviewProcessor = () => {
 
             {/* Process Button */}
             <button
-              onClick={processAudioFileEnhanced}
+              onClick={processAudioFile}
               disabled={!audioFile || apiStatus !== 'connected' || processing}
               className="w-full px-4 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
             >
-              {processing ? 'Processing...' : mlMode ? '🧠 Start AI-Enhanced Processing' : '🚀 Start Enhanced Processing'}
+              {processing ? 'Processing...' : mlMode ? '🧠 Start ML-Enhanced Processing' : '🚀 Start Enhanced Processing'}
             </button>
           </div>
         </div>
       )}
 
-      {/* Step 2: Processing */}
+      {/* Step 2: Processing (UNCHANGED) */}
       {step === 2 && (
         <div className="space-y-6">
           <div className="bg-gray-50 p-6 rounded-lg">
@@ -1554,13 +1363,13 @@ const AdvancedInterviewProcessor = () => {
 
             <div className="text-center text-gray-600">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-              Processing with enhanced features...
+              {mlMode ? 'Processing with ML enhancements...' : 'Processing with enhanced features...'}
             </div>
           </div>
         </div>
       )}
 
-      {/* Step 3: Results */}
+      {/* Step 3: Results (ENHANCED) */}
       {step === 3 && (
         <div className="space-y-6">
           <div className="bg-gray-50 p-6 rounded-lg">
@@ -1625,27 +1434,34 @@ const AdvancedInterviewProcessor = () => {
               </div>
             )}
 
-            {/* Sample Results */}
+            {/* Sample Results with Multiple Business Areas */}
             {processedInsights.length > 0 && (
               <div className="bg-white border rounded-lg p-4">
                 <h3 className="font-semibold mb-4">Sample Enhanced Results</h3>
                 <div className="space-y-4">
                   {processedInsights.slice(0, 3).map((insight, index) => (
-                    <div key={index} className="border-l-4 border-blue-500 pl-4 py-2">
+                    <div key={index} className={`border-l-4 pl-4 py-2 ${insight.speaker === 'Speaker_0' ? 'border-blue-500' : 'border-green-500'}`}>
                       <div className="text-sm text-gray-600 mb-1">
                         {insight.start_time} - {insight.end_time} | {insight.speaker} | Confidence: {insight.confidence_level}
                       </div>
                       <div className="text-sm mb-2">
-                        <strong>Text:</strong> {insight.original_text}
+                        <strong>Original:</strong> {insight.original_text}
                       </div>
-                      <div className="text-sm mb-2">
-                        <strong>Primary Area:</strong> {insight.business_area} ({insight.business_area_code})
-                      </div>
-                      <div className="text-sm mb-2">
-                        <strong>Suggested Areas:</strong> {insight.suggested_business_areas}
-                      </div>
+                      {insight.speaker === 'Speaker_1' && (
+                        <>
+                          <div className="text-sm mb-2">
+                            <strong>Professional:</strong> {insight.professional_text}
+                          </div>
+                          <div className="text-sm mb-2">
+                            <strong>Primary Area:</strong> {insight.business_area} ({insight.business_area_code})
+                          </div>
+                          <div className="text-sm mb-2">
+                            <strong>Suggested Areas:</strong> {insight.suggested_business_areas}
+                          </div>
+                        </>
+                      )}
                       <div className="text-xs text-gray-500">
-                        Sentiment: {insight.sentiment} | Subject: {insight.subject_company}
+                        {insight.speaker === 'Speaker_1' ? `Sentiment: ${insight.sentiment} | Subject: ${insight.subject_company}` : 'Interviewer Question (Preserved)'}
                       </div>
                     </div>
                   ))}
