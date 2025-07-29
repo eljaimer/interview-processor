@@ -116,7 +116,6 @@ const AdvancedInterviewProcessor = () => {
   // Minimal text cleaning - preserve all content
   const cleanTranscriptionText = (text) => {
     return text
-      // Only fix obvious spacing issues, preserve everything else
       .replace(/\s+/g, ' ')
       .trim();
   };
@@ -144,20 +143,20 @@ const AdvancedInterviewProcessor = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`;
   };
 
-  // FIXED: Complete sequential transcription with natural conversation flow
+  // COMPLETELY REDESIGNED: Natural conversation segments like the user's example
   const parseApiResponseImproved = (apiResponse) => {
     const segments = [];
     
     if (apiResponse.words && Array.isArray(apiResponse.words)) {
       const words = apiResponse.words;
-      console.log(`Processing ${words.length} words for complete transcription`);
+      console.log(`Processing ${words.length} words for natural conversation segments`);
       
-      // MUCH more conservative segmentation to preserve complete conversation
-      const PAUSE_THRESHOLD = 4.0;        // Increased: Only break on longer pauses
-      const MIN_SEGMENT_DURATION = 3.0;   // Minimum 3 seconds per segment
-      const MAX_SEGMENT_DURATION = 45.0;  // Increased: Allow longer segments for context
-      const MIN_WORDS_PER_SEGMENT = 3;    // Reduced: Accept shorter segments to avoid skipping
-      const MAX_WORDS_PER_SEGMENT = 100;  // Increased: Allow much longer segments
+      // MUCH MORE CONSERVATIVE - Create natural conversation chunks
+      const SPEAKER_CHANGE_ONLY = true;           // Primary segmentation rule
+      const MIN_SEGMENT_DURATION = 10.0;          // At least 10 seconds per segment
+      const TARGET_SEGMENT_DURATION = 25.0;       // Target 20-30 second segments like user's example
+      const MAX_SEGMENT_DURATION = 60.0;          // Maximum 60 seconds
+      const VERY_LONG_PAUSE = 6.0;               // Only break on very long pauses (6+ seconds)
       
       let currentSegment = {
         words: [],
@@ -172,36 +171,32 @@ const AdvancedInterviewProcessor = () => {
         const wordStart = word.start || 0;
         const wordEnd = word.end || wordStart + 0.5;
         
-        // MUCH more conservative segmentation rules
+        // ONLY break segments on these very specific conditions:
         const speakerChanged = currentSegment.speaker && currentSegment.speaker !== currentSpeaker;
         const veryLongPause = currentSegment.words.length > 0 && 
-                             (wordStart - currentSegment.endTime) > PAUSE_THRESHOLD;
+                             (wordStart - currentSegment.endTime) > VERY_LONG_PAUSE;
         const segmentTooLong = (wordEnd - currentSegment.startTime) > MAX_SEGMENT_DURATION;
-        const tooManyWords = currentSegment.words.length >= MAX_WORDS_PER_SEGMENT;
         
-        // Only break on very clear sentence endings with sufficient content
-        const clearSentenceEnd = word.text && 
-                                 /[.!?]$/.test(word.text.trim()) && 
-                                 currentSegment.words.length >= 15 && // Much higher threshold
-                                 (wordStart - currentSegment.endTime) > 1.0; // Plus a pause
+        // Natural conversation break: Complete thought + target duration reached
+        const naturalBreak = currentSegment.words.length > 0 &&
+                            (wordEnd - currentSegment.startTime) >= TARGET_SEGMENT_DURATION &&
+                            word.text && 
+                            (/[.!?]$/.test(word.text.trim()) || 
+                             /\b(¿verdad\?|¿sí\?|¿no\?|entonces|bueno|ok|okay)\b/i.test(word.text));
         
-        // Only break on major topic shifts, not minor connectors
-        const majorTopicShift = word.text && 
-                               /\b(entonces|pero ahora|sin embargo|por otro lado|en cambio|además|también)\b/i.test(word.text) &&
-                               currentSegment.words.length >= 20; // Much higher threshold
+        // ONLY create new segment if we have a clear reason AND minimum duration
+        const shouldBreak = (speakerChanged || veryLongPause || segmentTooLong || naturalBreak) && 
+                           currentSegment.words.length > 0 &&
+                           (currentSegment.endTime - currentSegment.startTime) >= MIN_SEGMENT_DURATION;
         
-        // ONLY break segments when absolutely necessary
-        if ((speakerChanged || veryLongPause || segmentTooLong || tooManyWords || clearSentenceEnd || majorTopicShift) && 
-            currentSegment.words.length >= MIN_WORDS_PER_SEGMENT) {
-          
-          // Create segment with minimal cleaning to preserve all content
+        if (shouldBreak) {
+          // Create segment with ALL content preserved
           const segmentText = currentSegment.words.map(w => w.text).join(' ');
           const cleanedText = cleanTranscriptionText(segmentText);
           const avgConfidence = calculateImprovedConfidence(currentSegment.words);
-          const segmentDuration = currentSegment.endTime - currentSegment.startTime;
           
-          // Accept ALL segments that meet minimum criteria - don't filter out content
-          if (cleanedText.trim().length > 0 && segmentDuration >= MIN_SEGMENT_DURATION) {
+          // Accept ALL segments - no filtering
+          if (cleanedText.trim().length > 0) {
             segments.push({
               start_time: formatTime(currentSegment.startTime),
               end_time: formatTime(currentSegment.endTime),
@@ -209,6 +204,8 @@ const AdvancedInterviewProcessor = () => {
               confidence: avgConfidence,
               text: cleanedText
             });
+            
+            console.log(`Created segment: ${formatTime(currentSegment.startTime)} - ${formatTime(currentSegment.endTime)} (${(currentSegment.endTime - currentSegment.startTime).toFixed(1)}s)`);
           }
           
           // Start new segment
@@ -229,7 +226,7 @@ const AdvancedInterviewProcessor = () => {
         }
       }
       
-      // ALWAYS add the final segment - don't lose the end of the conversation
+      // ALWAYS add the final segment
       if (currentSegment.words.length > 0) {
         const segmentText = currentSegment.words.map(w => w.text).join(' ');
         const cleanedText = cleanTranscriptionText(segmentText);
@@ -242,19 +239,19 @@ const AdvancedInterviewProcessor = () => {
           confidence: avgConfidence,
           text: cleanedText
         });
+        
+        console.log(`Final segment: ${formatTime(currentSegment.startTime)} - ${formatTime(currentSegment.endTime)} (${(currentSegment.endTime - currentSegment.startTime).toFixed(1)}s)`);
       }
       
-      console.log(`✅ Created ${segments.length} complete segments from ${words.length} words`);
+      console.log(`✅ Created ${segments.length} natural conversation segments`);
       
-      // Verify no time gaps - log any gaps found
-      for (let i = 1; i < segments.length; i++) {
-        const prevEnd = parseFloat(segments[i-1].end_time.replace(':', '.').replace('.', ''));
-        const currStart = parseFloat(segments[i].start_time.replace(':', '.').replace('.', ''));
-        const gap = currStart - prevEnd;
-        if (gap > 2.0) { // Gap larger than 2 seconds
-          console.warn(`⚠️ Time gap detected: ${gap.toFixed(2)}s between ${segments[i-1].end_time} and ${segments[i].start_time}`);
-        }
-      }
+      // Log segment durations for debugging
+      segments.forEach((segment, index) => {
+        const startSeconds = parseTimeToSeconds(segment.start_time);
+        const endSeconds = parseTimeToSeconds(segment.end_time);
+        const duration = endSeconds - startSeconds;
+        console.log(`Segment ${index + 1}: ${segment.start_time} - ${segment.end_time} (${duration.toFixed(1)}s) - ${segment.text.substring(0, 50)}...`);
+      });
       
       return segments;
     }
@@ -264,8 +261,8 @@ const AdvancedInterviewProcessor = () => {
       const sentences = apiResponse.text.split(/[.!?]+/).filter(s => s.trim().length > 5);
       
       sentences.forEach((sentence, index) => {
-        const startTime = index * 10;
-        const endTime = (index + 1) * 10;
+        const startTime = index * 20; // 20-second segments
+        const endTime = (index + 1) * 20;
         
         segments.push({
           start_time: formatTime(startTime),
@@ -282,7 +279,17 @@ const AdvancedInterviewProcessor = () => {
     throw new Error('Unexpected API response format');
   };
 
-  // Improved transcription function with better API settings
+  // Helper function to parse time to seconds
+  const parseTimeToSeconds = (timeString) => {
+    const parts = timeString.split(':');
+    const minutes = parseInt(parts[0]);
+    const secondsParts = parts[1].split('.');
+    const seconds = parseInt(secondsParts[0]);
+    const milliseconds = parseInt(secondsParts[1] || 0);
+    return minutes * 60 + seconds + milliseconds / 1000;
+  };
+
+  // Improved transcription function
   const transcribeWithElevenLabsImproved = async (file) => {
     try {
       setProgress(10);
@@ -295,7 +302,6 @@ const AdvancedInterviewProcessor = () => {
       formData.append('tag_audio_events', 'false');
       formData.append('timestamps_granularity', 'word');
       formData.append('response_format', 'json');
-      // Remove language restriction to let it auto-detect
       
       setProgress(20);
 
@@ -320,7 +326,9 @@ const AdvancedInterviewProcessor = () => {
         hasWords: !!result.words,
         wordCount: result.words?.length || 0,
         hasText: !!result.text,
-        hasSpeakers: result.words?.some(w => w.speaker_id) || false
+        hasSpeakers: result.words?.some(w => w.speaker_id) || false,
+        firstWord: result.words?.[0],
+        lastWord: result.words?.[result.words?.length - 1]
       });
       
       setProgress(80);
@@ -380,23 +388,22 @@ const AdvancedInterviewProcessor = () => {
     return result;
   };
 
-  // Enhanced professional transformation - more conservative to preserve meaning
+  // Enhanced professional transformation - more conservative
   const transformToProfessionalImproved = (text, speaker, companyName = "la compañía") => {
     if (speaker === "Speaker_1") {
       // Minimal cleaning for interviewer - preserve questions intact
       return text.replace(/\s+/g, ' ').trim();
     }
     
-    // More conservative transformation - preserve meaning and context
+    // Very conservative transformation - preserve meaning and context
     let professional = text
-      // Only remove obvious filler words, keep conversational flow
+      // Only remove obvious filler words
       .replace(/\beh,?\s*/gi, '')
       .replace(/\bmm+,?\s*/gi, '')
-      .replace(/\bah+,?\s*/gi, '')
       .replace(/\s+/g, ' ')
       .trim();
 
-    // Only apply transformations that clearly improve professionalism
+    // Only apply clear transformations
     const transformations = [
       { pattern: /\byo creo que\b/gi, replacement: `En ${companyName} consideramos que` },
       { pattern: /\bcreo que\b/gi, replacement: `${companyName} considera que` },
@@ -485,7 +492,8 @@ const AdvancedInterviewProcessor = () => {
     
     // Skip interviewer questions
     if (lowerText.includes('evalúa') || lowerText.includes('¿') || 
-        lowerText.includes('cómo') || lowerText.includes('qué tal')) {
+        lowerText.includes('cómo') || lowerText.includes('qué tal') ||
+        lowerText.includes('me encantaría') || lowerText.includes('me gustaría')) {
       return {
         businessArea: "INTERVIEWER",
         sentiment: "INTERVIEWER",
@@ -573,13 +581,12 @@ const AdvancedInterviewProcessor = () => {
     return mentioned.length > 0 ? mentioned : ["Regional"];
   };
 
-  // Simple translation function (placeholder for OpenAI integration)
+  // Simple translation function
   const translateToEnglish = async (text) => {
     if (!translationEnabled || !text || text.trim().length === 0) {
       return "Translation pending";
     }
     
-    // This would integrate with OpenAI API in production
     return "Translation pending - OpenAI integration needed";
   };
 
@@ -596,14 +603,14 @@ const AdvancedInterviewProcessor = () => {
     setErrorMessage('');
 
     try {
-      console.log('🎙️ Starting complete transcription process...');
+      console.log('🎙️ Starting natural conversation transcription...');
       const transcription = await transcribeWithElevenLabsImproved(audioFile);
       
       if (!transcription.success) {
         throw new Error('Transcription failed');
       }
       
-      console.log('📝 Processing transcription segments...');
+      console.log('📝 Processing natural conversation segments...');
       setProgress(40);
 
       const companyInfo = extractCompanyInfoImproved(audioFile.name);
@@ -612,53 +619,52 @@ const AdvancedInterviewProcessor = () => {
       for (const [index, segment] of transcription.segments.entries()) {
         const tags = autoTagEnhanced(segment.text);
         
-        if (!tags.isInterviewer) {
-          const professionalText = transformToProfessionalImproved(
-            segment.text, 
-            segment.speaker, 
-            companyInfo.company
-          );
+        // Process ALL segments, including interviewer questions for completeness
+        const professionalText = transformToProfessionalImproved(
+          segment.text, 
+          segment.speaker, 
+          companyInfo.company
+        );
+        
+        const countries = detectCountriesEnhanced(segment.text);
+        const subjectCompanyResult = detectSubjectCompanyEnhanced(segment.text);
+        
+        // Get English translation
+        const englishTranslation = await translateToEnglish(professionalText);
+        
+        insights.push({
+          file_name: audioFile.name,
+          start_time: segment.start_time,
+          end_time: segment.end_time,
+          speaker: segment.speaker,
+          confidence: segment.confidence,
+          original_text: segment.text,
+          professional_text: professionalText,
+          english_translation: englishTranslation,
           
-          const countries = detectCountriesEnhanced(segment.text);
-          const subjectCompanyResult = detectSubjectCompanyEnhanced(segment.text);
+          // Respondent Information
+          respondent_company: companyInfo.company,
+          respondent_company_code: companyInfo.company_id,
           
-          // Get English translation
-          const englishTranslation = await translateToEnglish(professionalText);
+          // Subject Information
+          subject_company_code: tags.isBestInClass ? "BIC001" : subjectCompanyResult.code,
+          subject_company: tags.isBestInClass ? "N/A - Best in Class" : subjectCompanyResult.company,
           
-          insights.push({
-            file_name: audioFile.name,
-            start_time: segment.start_time,
-            end_time: segment.end_time,
-            speaker: segment.speaker,
-            confidence: segment.confidence,
-            original_text: segment.text,
-            professional_text: professionalText,
-            english_translation: englishTranslation,
-            
-            // Respondent Information
-            respondent_company: companyInfo.company,
-            respondent_company_code: companyInfo.company_id,
-            
-            // Subject Information
-            subject_company_code: tags.isBestInClass ? "BIC001" : subjectCompanyResult.code,
-            subject_company: tags.isBestInClass ? "N/A - Best in Class" : subjectCompanyResult.company,
-            
-            // Analysis Results
-            business_area_code: tags.businessArea,
-            business_area: tags.isBestInClass ? "Best in Class" : competencyMap[tags.businessArea],
-            sentiment_code: tags.sentiment,
-            sentiment: tags.isBestInClass ? "Best in Class" : sentimentMap[tags.sentiment],
-            
-            // Additional fields
-            country_specific: countries.length > 1 || !countries.includes("Regional") ? "Country-specific" : "Regional",
-            countries: countries.join("; "),
-            is_best_in_class: tags.isBestInClass ? "Yes" : "No",
-            needs_review: segment.confidence < 0.7 ? "Yes" : "No",
-            interviewer_type: "Retailer",
-            processing_date: new Date().toISOString().split('T')[0],
-            confidence_level: segment.confidence >= 0.8 ? "High" : segment.confidence >= 0.6 ? "Medium" : "Low"
-          });
-        }
+          // Analysis Results
+          business_area_code: tags.businessArea,
+          business_area: tags.isBestInClass ? "Best in Class" : competencyMap[tags.businessArea],
+          sentiment_code: tags.sentiment,
+          sentiment: tags.isBestInClass ? "Best in Class" : sentimentMap[tags.sentiment],
+          
+          // Additional fields
+          country_specific: countries.length > 1 || !countries.includes("Regional") ? "Country-specific" : "Regional",
+          countries: countries.join("; "),
+          is_best_in_class: tags.isBestInClass ? "Yes" : "No",
+          needs_review: segment.confidence < 0.7 ? "Yes" : "No",
+          interviewer_type: "Retailer",
+          processing_date: new Date().toISOString().split('T')[0],
+          confidence_level: segment.confidence >= 0.8 ? "High" : segment.confidence >= 0.6 ? "Medium" : "Low"
+        });
         
         // Update progress
         setProgress(40 + (index / transcription.segments.length) * 40);
@@ -740,7 +746,7 @@ const AdvancedInterviewProcessor = () => {
     <div className="max-w-6xl mx-auto p-6 bg-white">
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-lg mb-6">
         <h1 className="text-3xl font-bold mb-2">🎙️ Advanced Interview Processor</h1>
-        <p className="text-blue-100">Complete sequential transcription with natural conversation flow</p>
+        <p className="text-blue-100">Natural conversation segments with complete context preservation</p>
       </div>
 
       {/* Step 1: Setup */}
@@ -827,7 +833,7 @@ const AdvancedInterviewProcessor = () => {
               disabled={!audioFile || apiStatus !== 'connected' || processing}
               className="w-full px-4 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
             >
-              {processing ? 'Processing...' : '🚀 Start Complete Transcription'}
+              {processing ? 'Processing...' : '🚀 Start Natural Conversation Processing'}
             </button>
           </div>
         </div>
@@ -854,7 +860,7 @@ const AdvancedInterviewProcessor = () => {
 
             <div className="text-center text-gray-600">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-              Processing complete sequential transcription...
+              Creating natural conversation segments...
             </div>
           </div>
         </div>
@@ -869,7 +875,7 @@ const AdvancedInterviewProcessor = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div className="bg-white p-4 rounded-lg border">
                 <div className="text-2xl font-bold text-blue-600">{processedInsights.length}</div>
-                <div className="text-sm text-gray-600">Processed Segments</div>
+                <div className="text-sm text-gray-600">Natural Segments</div>
               </div>
               <div className="bg-white p-4 rounded-lg border">
                 <div className="text-2xl font-bold text-green-600">
@@ -922,7 +928,7 @@ const AdvancedInterviewProcessor = () => {
             {/* Sample Results */}
             {processedInsights.length > 0 && (
               <div className="bg-white border rounded-lg p-4">
-                <h3 className="font-semibold mb-4">Sample Processed Insights</h3>
+                <h3 className="font-semibold mb-4">Sample Natural Conversation Segments</h3>
                 <div className="space-y-4">
                   {processedInsights.slice(0, 3).map((insight, index) => (
                     <div key={index} className="border-l-4 border-blue-500 pl-4 py-2">
