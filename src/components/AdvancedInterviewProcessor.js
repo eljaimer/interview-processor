@@ -866,7 +866,7 @@ const AdvancedInterviewProcessor = () => {
     return result;
   };
 
-  // ENHANCED Professional transformation for interviewee responses
+  // COMPLETELY OVERHAULED Professional transformation for actionable business insights
   const transformToProfessional = (text, speaker, company) => {
     // Only transform interviewee responses (Speaker_1)
     if (speaker === "Speaker_0") {
@@ -890,216 +890,385 @@ const AdvancedInterviewProcessor = () => {
       }
     }
     
-    // ENHANCED filler word removal (30+ patterns)
-    const fillerPatterns = [
-      // Basic fillers
-      /\b(eh|ah|um|mm|hmm|este|esto|pues|bueno|o sea|como que|digamos|verdad|no sé|sabes|entonces|así|como|tipo)\b/gi,
-      // Repetitive words
-      /\b(y y|que que|es es|la la|el el|de de|en en|con con|por por|para para|se se|me me|te te)\b/gi,
-      // Extended sounds
-      /\b(ehhh|ahhh|ummm|mmmm|eeee|aaaa|yyyy|siii|nooo)\b/gi,
-      // Hesitation patterns
-      /\b(este\s+este|bueno\s+bueno|pues\s+pues|como\s+como|que\s+que)\b/gi,
-      // Punctuation artifacts
+    // PHASE 1: AGGRESSIVE CLEANUP - Remove all fillers and artifacts
+    const aggressiveCleanupPatterns = [
+      // Remove all filler words and sounds
+      /\b(eh|ah|um|mm|hmm|este|esto|pues|bueno|o sea|como que|digamos|verdad|no sé|sabes|entonces|así|como|tipo|okey|ok)\b/gi,
+      // Remove extended sounds and hesitations
+      /\b(ehhh|ahhh|ummm|mmmm|eeee|aaaa|yyyy|siii|nooo|hastaaa|queee)\b/gi,
+      // Remove repetitive words completely
+      /\b(y y|que que|es es|la la|el el|de de|en en|con con|por por|para para|se se|me me|te te|son son|hay hay)\b/gi,
+      // Remove incomplete thoughts and trailing words
+      /\b(o sea que|es decir que|como te digo|como te comento|la verdad es que|al final|es más|por mencionar)\b/gi,
+      // Remove question marks and incomplete sentences at the end
+      /[,\s]*¿[^?]*\??\s*$/gi,
+      /[,\s]*Y[,\s]*y[,\s]*y[^.]*$/gi,
+      /[,\s]*-[^.]*$/gi,
+      // Remove multiple punctuation and spaces
       /\s*\.\.\.\s*/g,
       /\s*,\s*,\s*/g,
       /\s*;\s*;\s*/g,
-      // Multiple spaces
       /\s{2,}/g,
-      // Incomplete thoughts
-      /\b(o sea que|es decir que|como te digo|como te comento|la verdad es que)\b/gi
+      // Remove trailing incomplete phrases
+      /[,\s]+(y|pero|que|cuando|donde|como)\s*$/gi
     ];
     
-    fillerPatterns.forEach(pattern => {
+    aggressiveCleanupPatterns.forEach(pattern => {
       transformed = transformed.replace(pattern, ' ');
     });
     
-    // ENHANCED first person to company perspective transformations
-    const companyPerspectiveTransformations = [
-      // Basic first person
-      { pattern: /\byo creo que\b/gi, replacement: `${company} considera que` },
-      { pattern: /\byo pienso que\b/gi, replacement: `${company} evalúa que` },
-      { pattern: /\byo siento que\b/gi, replacement: `${company} percibe que` },
-      { pattern: /\byo veo que\b/gi, replacement: `${company} observa que` },
-      { pattern: /\byo diría que\b/gi, replacement: `${company} indica que` },
-      { pattern: /\byo opino que\b/gi, replacement: `${company} considera que` },
-      
-      // Plural first person
-      { pattern: /\bnosotros creemos\b/gi, replacement: `${company} considera` },
-      { pattern: /\bnosotros pensamos\b/gi, replacement: `${company} evalúa` },
-      { pattern: /\bnosotros vemos\b/gi, replacement: `${company} observa` },
-      { pattern: /\bnosotros sentimos\b/gi, replacement: `${company} percibe` },
-      
-      // Opinion expressions
-      { pattern: /\ben mi opinión\b/gi, replacement: `Desde la perspectiva de ${company}` },
-      { pattern: /\ba mi parecer\b/gi, replacement: `En la evaluación de ${company}` },
-      { pattern: /\bdesde mi punto de vista\b/gi, replacement: `Desde la perspectiva de ${company}` },
-      { pattern: /\bpara mí\b/gi, replacement: `Para ${company}` },
-      
-      // Experience expressions
-      { pattern: /\ben mi experiencia\b/gi, replacement: `En la experiencia de ${company}` },
-      { pattern: /\bhe visto que\b/gi, replacement: `${company} ha observado que` },
-      { pattern: /\bhemos notado que\b/gi, replacement: `${company} ha identificado que` }
-    ];
+    // PHASE 2: SENTENCE RESTRUCTURING - Break into logical segments
+    // Split by major connectors and restructure
+    let sentences = transformed
+      .split(/[.!?]+/)
+      .map(s => s.trim())
+      .filter(s => s.length > 5);
     
-    // Apply company perspective transformations
-    companyPerspectiveTransformations.forEach(({ pattern, replacement }) => {
-      transformed = transformed.replace(pattern, replacement);
-    });
-    
-    // ENHANCED professional language upgrades
-    const professionalLanguageUpgrades = [
-      // Quality descriptors
-      { pattern: /\bmuy bueno\b/gi, replacement: 'excelente' },
-      { pattern: /\bbueno\b/gi, replacement: 'satisfactorio' },
-      { pattern: /\bregular\b/gi, replacement: 'aceptable' },
-      { pattern: /\bmalo\b/gi, replacement: 'deficiente' },
-      { pattern: /\bmuy malo\b/gi, replacement: 'crítico' },
-      { pattern: /\bpésimo\b/gi, replacement: 'inaceptable' },
+    // Process each sentence for clarity and structure
+    sentences = sentences.map(sentence => {
+      let processed = sentence;
       
-      // Problem/solution language
-      { pattern: /\bproblemas\b/gi, replacement: 'oportunidades de mejora' },
-      { pattern: /\bdificultades\b/gi, replacement: 'desafíos' },
-      { pattern: /\bfallas\b/gi, replacement: 'áreas de optimización' },
-      { pattern: /\berrores\b/gi, replacement: 'inconsistencias' },
-      { pattern: /\bno funciona\b/gi, replacement: 'requiere optimización' },
-      { pattern: /\bno sirve\b/gi, replacement: 'no cumple con los estándares' },
+      // Remove leading conjunctions that don't make sense at sentence start
+      processed = processed.replace(/^(y|pero|entonces|así|como|que)\s+/gi, '');
       
-      // Performance language
-      { pattern: /\bfunciona bien\b/gi, replacement: 'opera eficientemente' },
-      { pattern: /\btrabaja bien\b/gi, replacement: 'desempeña efectivamente' },
-      { pattern: /\bhace bien su trabajo\b/gi, replacement: 'cumple satisfactoriamente con sus funciones' },
+      // Fix common structural issues
+      processed = processed
+        // Fix "es, es" patterns
+        .replace(/\bes,\s*es\b/gi, 'es')
+        // Fix "porque al final" patterns
+        .replace(/\bporque al final,?\s*/gi, 'porque ')
+        // Fix "hay varios" to more professional language
+        .replace(/\bhay varios?\b/gi, 'existen múltiples')
+        // Fix "es bien complejo" to professional language
+        .replace(/\bes bien (complejo|difícil|complicado)\b/gi, 'resulta $1')
+        // Fix "poder trabajar así" patterns
+        .replace(/\bpoder trabajar así\b/gi, 'operar de esta manera')
+        // Clean up remaining artifacts
+        .replace(/,\s*,/g, ',')
+        .replace(/\s+/g, ' ')
+        .trim();
       
-      // Relationship language
-      { pattern: /\bse lleva bien\b/gi, replacement: 'mantiene una relación profesional positiva' },
-      { pattern: /\bcolabora bien\b/gi, replacement: 'demuestra excelente colaboración' },
-      { pattern: /\bse comunica bien\b/gi, replacement: 'mantiene comunicación efectiva' }
-    ];
+      return processed;
+    }).filter(s => s.length > 3);
     
-    // Apply professional language upgrades
-    professionalLanguageUpgrades.forEach(({ pattern, replacement }) => {
-      transformed = transformed.replace(pattern, replacement);
-    });
+    // PHASE 3: CONTENT RESTRUCTURING - Create logical flow
+    let restructuredContent = [];
+    let currentTopic = '';
+    let supportingDetails = [];
     
-    // ENHANCED business terminology transformations
-    const businessTerminologyUpgrades = [
-      // People and roles
-      { pattern: /\bvendedores\b/gi, replacement: 'equipo comercial' },
-      { pattern: /\bempleados\b/gi, replacement: 'colaboradores' },
-      { pattern: /\btrabajadores\b/gi, replacement: 'personal' },
-      { pattern: /\bjefe\b/gi, replacement: 'supervisor' },
-      { pattern: /\bgerente\b/gi, replacement: 'director' },
-      
-      // Business relationships
-      { pattern: /\bclientes\b/gi, replacement: 'socios comerciales' },
-      { pattern: /\bcompradores\b/gi, replacement: 'responsables de adquisiciones' },
-      { pattern: /\bproveedores\b/gi, replacement: 'socios estratégicos' },
-      
-      // Business activities
-      { pattern: /\bcomprar\b/gi, replacement: 'adquirir' },
-      { pattern: /\bvender\b/gi, replacement: 'comercializar' },
-      { pattern: /\bnegociar\b/gi, replacement: 'establecer acuerdos comerciales' },
-      { pattern: /\bhacer negocios\b/gi, replacement: 'desarrollar relaciones comerciales' },
-      
-      // Financial terms
-      { pattern: /\bdinero\b/gi, replacement: 'inversión' },
-      { pattern: /\bplata\b/gi, replacement: 'recursos financieros' },
-      { pattern: /\bcaro\b/gi, replacement: 'de alto valor' },
-      { pattern: /\bbarato\b/gi, replacement: 'competitivo en precio' },
-      { pattern: /\bcuesta mucho\b/gi, replacement: 'requiere inversión significativa' },
-      
-      // Process terms
-      { pattern: /\bhacer las cosas\b/gi, replacement: 'ejecutar procesos' },
-      { pattern: /\btrabajar en\b/gi, replacement: 'desarrollar' },
-      { pattern: /\bmanejar\b/gi, replacement: 'gestionar' },
-      { pattern: /\bcontrolar\b/gi, replacement: 'supervisar' }
-    ];
-    
-    // Apply business terminology upgrades
-    businessTerminologyUpgrades.forEach(({ pattern, replacement }) => {
-      transformed = transformed.replace(pattern, replacement);
-    });
-    
-    // ENHANCED context-aware variations to avoid repetition
-    const contextVariations = [
-      // Company perspective variations
-      { 
-        pattern: new RegExp(`\\b${company} considera que\\b`, 'gi'), 
-        alternatives: [`${company} evalúa que`, `En ${company} se considera que`, `${company} determina que`, `La perspectiva de ${company} es que`] 
-      },
-      { 
-        pattern: /\bexcelente\b/gi, 
-        alternatives: ['sobresaliente', 'destacado', 'superior', 'excepcional'] 
-      },
-      { 
-        pattern: /\boportunidades de mejora\b/gi, 
-        alternatives: ['áreas de desarrollo', 'aspectos a optimizar', 'puntos de mejora', 'espacios de crecimiento'] 
-      },
-      { 
-        pattern: /\bsatisfactorio\b/gi, 
-        alternatives: ['adecuado', 'apropiado', 'aceptable', 'conforme a expectativas'] 
-      },
-      { 
-        pattern: /\bdeficiente\b/gi, 
-        alternatives: ['por debajo del estándar', 'requiere mejora', 'insatisfactorio', 'no cumple expectativas'] 
-      }
-    ];
-    
-    // Apply variations randomly to avoid repetition (only sometimes)
-    contextVariations.forEach(({ pattern, alternatives }) => {
-      if (pattern.test(transformed) && Math.random() > 0.6) { // 40% chance of variation
-        const randomAlternative = alternatives[Math.floor(Math.random() * alternatives.length)];
-        transformed = transformed.replace(pattern, randomAlternative);
-      }
-    });
-    
-    // ENHANCED sentence structure and flow improvements
-    transformed = transformed
-      // Fix spacing around punctuation
-      .replace(/\s+/g, ' ')
-      .replace(/\s*,\s*/g, ', ')
-      .replace(/\s*\.\s*/g, '. ')
-      .replace(/\s*;\s*/g, '; ')
-      .replace(/\s*:\s*/g, ': ')
-      .replace(/\s*\?\s*/g, '? ')
-      .replace(/\s*!\s*/g, '! ')
-      // Remove redundant conjunctions
-      .replace(/\b(y y|pero pero|que que|cuando cuando)\b/gi, (match) => match.split(' ')[0])
-      // Improve sentence connectors
-      .replace(/\b(y entonces|y después|y luego)\b/gi, 'posteriormente')
-      .replace(/\b(pero también|pero además)\b/gi, 'adicionalmente')
-      .replace(/\b(y también|y además)\b/gi, 'asimismo')
-      .trim();
-    
-    // ENHANCED capitalization and sentence ending
-    if (transformed.length > 0) {
-      // Capitalize first letter
-      transformed = transformed.charAt(0).toUpperCase() + transformed.slice(1);
-      
-      // Ensure proper sentence ending
-      if (!/[.!?]$/.test(transformed)) {
-        // Add appropriate ending based on content
-        if (transformed.includes('?') || transformed.toLowerCase().includes('qué') || 
-            transformed.toLowerCase().includes('cómo') || transformed.toLowerCase().includes('cuándo')) {
-          transformed += '?';
-        } else if (transformed.toLowerCase().includes('excelente') || 
-                   transformed.toLowerCase().includes('sobresaliente') ||
-                   transformed.toLowerCase().includes('crítico')) {
-          transformed += '!';
-        } else {
-          transformed += '.';
+    sentences.forEach(sentence => {
+      // Identify if this is a main topic or supporting detail
+      if (sentence.toLowerCase().includes('en el caso de') || 
+          sentence.toLowerCase().includes('con ') && sentence.toLowerCase().includes(' trabajamos') ||
+          sentence.toLowerCase().includes('el problema es') ||
+          sentence.toLowerCase().includes('la situación es')) {
+        // This is a main topic
+        if (currentTopic && supportingDetails.length > 0) {
+          restructuredContent.push(currentTopic + '. ' + supportingDetails.join('. ') + '.');
         }
+        currentTopic = sentence;
+        supportingDetails = [];
+      } else if (sentence.length > 10) {
+        // This is a supporting detail
+        supportingDetails.push(sentence);
       }
-      
-      // Capitalize after periods within the text
-      transformed = transformed.replace(/\.\s+([a-z])/g, (match, letter) => '. ' + letter.toUpperCase());
+    });
+    
+    // Add the last topic and details
+    if (currentTopic) {
+      if (supportingDetails.length > 0) {
+        restructuredContent.push(currentTopic + '. ' + supportingDetails.join('. ') + '.');
+      } else {
+        restructuredContent.push(currentTopic + '.');
+      }
+    } else if (supportingDetails.length > 0) {
+      // If no clear topic, just join the details logically
+      restructuredContent.push(supportingDetails.join('. ') + '.');
     }
     
-    console.log(`🔄 Enhanced professional transformation applied (${speaker}):`, {
-      original: text.substring(0, 50) + '...',
-      transformed: transformed.substring(0, 50) + '...',
+    transformed = restructuredContent.join(' ');
+    
+    // PHASE 4: PROFESSIONAL LANGUAGE TRANSFORMATION + RETAILER PERSPECTIVE WITH NATURAL VARIATION
+    const getRandomVariation = (alternatives) => {
+      return alternatives[Math.floor(Math.random() * alternatives.length)];
+    };
+    
+    const professionalTransformations = [
+      // RETAILER PERSPECTIVE TRANSFORMATIONS WITH NATURAL VARIATIONS
+      // Individual opinions to company perspective - MULTIPLE VARIATIONS
+      { 
+        pattern: /\byo creo que\b/gi, 
+        replacement: () => getRandomVariation([
+          `En ${company} creemos que`,
+          `Creemos que`,
+          `En ${company} consideramos que`,
+          `Consideramos que`,
+          `En ${company} notamos que`,
+          `Hemos observado que`
+        ])
+      },
+      { 
+        pattern: /\byo pienso que\b/gi, 
+        replacement: () => getRandomVariation([
+          `En ${company} consideramos que`,
+          `Consideramos que`,
+          `En ${company} evaluamos que`,
+          `Nuestra perspectiva es que`,
+          `En ${company} creemos que`
+        ])
+      },
+      { 
+        pattern: /\byo considero que\b/gi, 
+        replacement: () => getRandomVariation([
+          `En ${company} evaluamos que`,
+          `Evaluamos que`,
+          `En ${company} consideramos que`,
+          `Para nosotros es claro que`,
+          `Consideramos que`
+        ])
+      },
+      { 
+        pattern: /\byo veo que\b/gi, 
+        replacement: () => getRandomVariation([
+          `En ${company} observamos que`,
+          `Hemos visto que`,
+          `En ${company} notamos que`,
+          `Observamos que`,
+          `En ${company} hemos identificado que`
+        ])
+      },
+      
+      // Individual actions to company actions - NATURAL VARIATIONS
+      { 
+        pattern: /\byo trabajo\b/gi, 
+        replacement: () => getRandomVariation([
+          `En ${company} trabajamos`,
+          `Trabajamos`,
+          `En ${company} manejamos`,
+          `Gestionamos`,
+          `En ${company} operamos`
+        ])
+      },
+      { 
+        pattern: /\byo manejo\b/gi, 
+        replacement: () => getRandomVariation([
+          `En ${company} manejamos`,
+          `Manejamos`,
+          `En ${company} gestionamos`,
+          `Gestionamos`,
+          `En ${company} coordinamos`
+        ])
+      },
+      
+      // Relationship statements - SUPPLIER-FOCUSED VARIATIONS
+      { 
+        pattern: /\btrabajamos con ([^.]+)\b/gi, 
+        replacement: (match, supplier) => getRandomVariation([
+          `Con ${supplier} trabajamos`,
+          `${supplier} es un proveedor con el que trabajamos`,
+          `En ${company} trabajamos con ${supplier}`,
+          `${supplier} siempre ha sido un proveedor que destaca en ${company}`,
+          `Con ${supplier} mantenemos una relación comercial`
+        ])
+      },
+      { 
+        pattern: /\btenemos una (buena|excelente|mala) relación con ([^.]+)\b/gi, 
+        replacement: (match, quality, supplier) => {
+          if (quality.toLowerCase() === 'buena' || quality.toLowerCase() === 'excelente') {
+            return getRandomVariation([
+              `Con ${supplier} tenemos una ${quality} relación`,
+              `${supplier} es un socio estratégico valioso para ${company}`,
+              `En ${company} valoramos nuestra relación con ${supplier}`,
+              `${supplier} siempre ha sido un proveedor confiable para nosotros`,
+              `Con ${supplier} mantenemos una colaboración efectiva`
+            ]);
+          } else {
+            return getRandomVariation([
+              `Con ${supplier} hemos identificado oportunidades de mejora`,
+              `${supplier} presenta algunos desafíos en nuestra relación comercial`,
+              `En ${company} trabajamos con ${supplier} para optimizar nuestra colaboración`
+            ]);
+          }
+        }
+      },
+      
+      // Company values and priorities - NATURAL FLOW VARIATIONS
+      { 
+        pattern: /\bsiempre busco\b/gi, 
+        replacement: () => getRandomVariation([
+          `En ${company} siempre buscamos`,
+          `Siempre buscamos`,
+          `Para nosotros es importante`,
+          `En ${company} priorizamos`,
+          `Constantemente trabajamos para`
+        ])
+      },
+      { 
+        pattern: /\bme parece importante\b/gi, 
+        replacement: () => getRandomVariation([
+          `En ${company} consideramos importante`,
+          `Para nosotros es importante`,
+          `Consideramos fundamental`,
+          `En ${company} priorizamos`,
+          `Es clave para nosotros`
+        ])
+      },
+      { 
+        pattern: /\bpara mí es fundamental\b/gi, 
+        replacement: () => getRandomVariation([
+          `Para ${company} es fundamental`,
+          `Es fundamental para nosotros`,
+          `En ${company} consideramos esencial`,
+          `Para nosotros es clave`,
+          `Consideramos prioritario`
+        ])
+      },
+      
+      // Experience and observations - VARIED EXPRESSIONS
+      { 
+        pattern: /\bhe visto que\b/gi, 
+        replacement: () => getRandomVariation([
+          `En ${company} hemos observado que`,
+          `Hemos visto que`,
+          `En ${company} notamos que`,
+          `Hemos identificado que`,
+          `En nuestra experiencia`
+        ])
+      },
+      { 
+        pattern: /\ben mi experiencia\b/gi, 
+        replacement: () => getRandomVariation([
+          `En la experiencia de ${company}`,
+          `En nuestra experiencia`,
+          `Hemos aprendido que`,
+          `En ${company} hemos comprobado que`,
+          `Nuestra experiencia nos indica que`
+        ])
+      },
+      
+      // Expectations and requirements - PROFESSIONAL VARIATIONS
+      { 
+        pattern: /\bespero que\b/gi, 
+        replacement: () => getRandomVariation([
+          `En ${company} esperamos que`,
+          `Esperamos que`,
+          `Para nosotros sería ideal que`,
+          `En ${company} nos gustaría que`,
+          `Consideramos importante que`
+        ])
+      },
+      { 
+        pattern: /\bnecesito que\b/gi, 
+        replacement: () => getRandomVariation([
+          `En ${company} necesitamos que`,
+          `Necesitamos que`,
+          `Para nosotros es importante que`,
+          `En ${company} requerimos que`,
+          `Es fundamental que`
+        ])
+      }
+    ];
+    
+    // Apply professional transformations with variation
+    professionalTransformations.forEach(({ pattern, replacement }) => {
+      if (typeof replacement === 'function') {
+        // Handle dynamic replacements with variations
+        transformed = transformed.replace(pattern, replacement);
+      } else {
+        // Handle static replacements
+        transformed = transformed.replace(pattern, replacement);
+      }
+    });
+    
+    // ADDITIONAL STATIC TRANSFORMATIONS (keeping existing ones)
+    const staticTransformations = [
+      // Business context improvements
+      { pattern: /\ben el caso de ([^,]+),?\s*/gi, replacement: 'En el caso de $1 ' },
+      { pattern: /\blo trabajo muy bien\b/gi, replacement: `mantenemos una excelente relación` },
+      { pattern: /\blo estoy trabajando\b/gi, replacement: `estamos trabajando en esto` },
+      
+      // Distribution and logistics language
+      { pattern: /\bhay varios distribuidores\b/gi, replacement: 'existe una red de distribución compleja' },
+      { pattern: /\bdistribuidores dentro del mismo país\b/gi, replacement: 'múltiples distribuidores operando en el mismo mercado' },
+      { pattern: /\bvan a distribuir\b/gi, replacement: 'manejan la distribución de' },
+      { pattern: /\blo distribuye uno\b/gi, replacement: 'lo maneja un distribuidor' },
+      { pattern: /\blo va a distribuir otro\b/gi, replacement: 'es manejado por otro distribuidor' },
+      
+      // Complexity and challenges
+      { pattern: /\bresulta complejo\b/gi, replacement: 'presenta desafíos operativos' },
+      { pattern: /\boperar de esta manera\b/gi, replacement: 'coordinar eficientemente con esta estructura' },
+      { pattern: /\bson complejos cuando son tantas cabecillas\b/gi, replacement: 'se complican con múltiples puntos de contacto' },
+      { pattern: /\bcon tanta persona que está llevando\b/gi, replacement: 'cuando múltiples personas gestionan' },
+      
+      // Relationship and collaboration language
+      { pattern: /\bempezando a regionalizarse\b/gi, replacement: 'implementando una estrategia de regionalización' },
+      { pattern: /\bsiempre he\b/gi, replacement: `En ${company} siempre hemos` },
+      { pattern: /\bsiempre hemos\b/gi, replacement: `En ${company} siempre hemos` },
+      
+      // Quality and performance descriptors
+      { pattern: /\bmuy bien\b/gi, replacement: 'efectivamente' },
+      { pattern: /\bbien\b/gi, replacement: 'satisfactoriamente' },
+      { pattern: /\bmal\b/gi, replacement: 'de manera deficiente' },
+      { pattern: /\bproblemas\b/gi, replacement: 'desafíos operativos' },
+      { pattern: /\bdificultades\b/gi, replacement: 'obstáculos' },
+      
+      // Supplier evaluation language
+      { pattern: /\bson muy atentos\b/gi, replacement: 'demuestran excelente atención' },
+      { pattern: /\bnos proveen información necesaria\b/gi, replacement: 'proporcionan la información requerida' },
+      { pattern: /\bson un excelente proveedor\b/gi, replacement: 'representan un socio estratégico de alto valor' },
+      { pattern: /\bdeberían ser más rápidos\b/gi, replacement: 'podrían optimizar sus tiempos de respuesta' },
+      { pattern: /\btienen que mejorar\b/gi, replacement: 'presentan oportunidades de mejora en' }
+    ];
+    
+    // Apply static transformations
+    staticTransformations.forEach(({ pattern, replacement }) => {
+      transformed = transformed.replace(pattern, replacement);
+    });
+    
+    // PHASE 5: SENTENCE FLOW AND STRUCTURE OPTIMIZATION
+    transformed = transformed
+      // Fix sentence connectors
+      .replace(/\.\s*Pero\s+/gi, '. Sin embargo, ')
+      .replace(/\.\s*Y\s+/gi, '. Adicionalmente, ')
+      .replace(/\.\s*Entonces\s+/gi, '. Por lo tanto, ')
+      .replace(/\.\s*Así\s+/gi, '. De esta manera, ')
+      // Fix spacing and punctuation
+      .replace(/\s*,\s*/g, ', ')
+      .replace(/\s*\.\s*/g, '. ')
+      .replace(/\s*:\s*/g, ': ')
+      .replace(/\s+/g, ' ')
+      // Remove redundant phrases
+      .replace(/\bPor mencionar un ejemplo:\s*/gi, 'Por ejemplo, ')
+      .replace(/\bAl final\s*/gi, '')
+      .replace(/\bEs más,?\s*/gi, '')
+      .trim();
+    
+    // PHASE 6: FINAL POLISH AND CAPITALIZATION
+    if (transformed.length > 0) {
+      // Ensure proper capitalization
+      transformed = transformed.charAt(0).toUpperCase() + transformed.slice(1);
+      
+      // Capitalize after periods
+      transformed = transformed.replace(/\.\s+([a-z])/g, (match, letter) => '. ' + letter.toUpperCase());
+      
+      // Ensure proper ending
+      if (!/[.!?]$/.test(transformed)) {
+        transformed += '.';
+      }
+      
+      // Final cleanup of any remaining artifacts
+      transformed = transformed
+        .replace(/\s+/g, ' ')
+        .replace(/\.\s*\./g, '.')
+        .replace(/,\s*\./g, '.')
+        .trim();
+    }
+    
+    console.log(`🔄 ACTIONABLE INSIGHT TRANSFORMATION (${speaker}):`, {
+      original: text.substring(0, 80) + '...',
+      transformed: transformed.substring(0, 80) + '...',
       company: company,
-      improvements: 'Enhanced filler removal, company perspective, professional language, business terminology'
+      improvements: 'Aggressive cleanup, sentence restructuring, professional language, actionable insights'
     });
     
     return transformed;
