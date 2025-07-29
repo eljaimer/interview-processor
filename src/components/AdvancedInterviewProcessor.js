@@ -1,8 +1,70 @@
 import React, { useState, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
+// Simple card components
+const Card = ({ children, className = "" }) => (
+  <div className={`bg-white border border-gray-200 rounded-lg shadow-sm ${className}`}>
+    {children}
+  </div>
+);
+
+const CardHeader = ({ children }) => (
+  <div className="px-6 py-4 border-b border-gray-200">
+    {children}
+  </div>
+);
+
+const CardTitle = ({ children, className = "" }) => (
+  <h3 className={`text-lg font-semibold text-gray-900 ${className}`}>
+    {children}
+  </h3>
+);
+
+const CardContent = ({ children, className = "" }) => (
+  <div className={`px-6 py-4 ${className}`}>
+    {children}
+  </div>
+);
+
+const Button = ({ children, onClick, disabled = false, className = "", variant = "default" }) => {
+  const baseClasses = "px-4 py-2 rounded-md font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500";
+  const variants = {
+    default: "bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-400",
+    outline: "border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:bg-gray-100"
+  };
+  
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`${baseClasses} ${variants[variant]} ${className}`}
+    >
+      {children}
+    </button>
+  );
+};
+
+const Badge = ({ children, className = "", variant = "default" }) => {
+  const baseClasses = "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium";
+  const variants = {
+    default: "bg-blue-100 text-blue-800",
+    outline: "border border-gray-300 text-gray-700",
+    secondary: "bg-gray-100 text-gray-800"
+  };
+  
+  return (
+    <span className={`${baseClasses} ${variants[variant]} ${className}`}>
+      {children}
+    </span>
+  );
+};
+
+const Progress = ({ value, className = "" }) => (
+  <div className={`w-full bg-gray-200 rounded-full h-2 ${className}`}>
+    <div
+      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+      style={{ width: `${Math.min(100, Math.max(0, value))}%` }}
+    />
+  </div>
+);
 import { Upload, Play, Download, Settings, CheckCircle, AlertTriangle, FileAudio, Wifi, WifiOff, Users } from 'lucide-react';
 
 const AdvancedInterviewProcessor = () => {
