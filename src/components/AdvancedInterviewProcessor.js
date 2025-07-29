@@ -143,26 +143,60 @@ const AdvancedInterviewProcessor = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`;
   };
 
-  // COMPLETELY REDESIGNED: Natural conversation segments like the user's example
+  // Speaker continuity with natural conversation flow
   const parseApiResponseImproved = (apiResponse) => {
     const segments = [];
     
     if (apiResponse.words && Array.isArray(apiResponse.words)) {
       const words = apiResponse.words;
-      console.log(`Processing ${words.length} words for natural conversation segments`);
+      console.log(`Processing ${words.length} words for speaker-continuous segments`);
       
-      // MUCH MORE CONSERVATIVE - Create natural conversation chunks
-      const SPEAKER_CHANGE_ONLY = true;           // Primary segmentation rule
-      const MIN_SEGMENT_DURATION = 10.0;          // At least 10 seconds per segment
-      const TARGET_SEGMENT_DURATION = 25.0;       // Target 20-30 second segments like user's example
-      const MAX_SEGMENT_DURATION = 60.0;          // Maximum 60 seconds
-      const VERY_LONG_PAUSE = 6.0;               // Only break on very long pauses (6+ seconds)
+      // Enhanced speaker detection and continuity
+      const VERY_LONG_PAUSE = 8.0;               // Only break on very long pauses (8+ seconds)
+      const MIN_SEGMENT_DURATION = 8.0;          // Minimum 8 seconds per segment
+      const TARGET_SEGMENT_DURATION = 25.0;      // Target 25 seconds like user's example
+      const MAX_SEGMENT_DURATION = 60.0;         // Maximum 60 seconds
+      const SPEAKER_CHANGE_BUFFER = 2.0;         // Buffer to confirm real speaker changes
       
       let currentSegment = {
         words: [],
         speaker: null,
         startTime: 0,
-        endTime: 0
+        endTime: 0,
+        speakerConfidence: 0
+      };
+      
+      // Helper function to determine the most likely speaker for a segment
+      const getMostLikelySpeaker = (words) => {
+        const speakerCounts = {};
+        words.forEach(word => {
+          const speaker = word.speaker_id || 'speaker_1';
+          speakerCounts[speaker] = (speakerCounts[speaker] || 0) + 1;
+        });
+        
+        // Return the speaker with the most words in this segment
+        return Object.entries(speakerCounts).reduce((a, b) => 
+          speakerCounts[a[0]] > speakerCounts[b[0]] ? a : b
+        )[0];
+      };
+      
+      // Helper function to detect if there's a real speaker change
+      const isRealSpeakerChange = (currentWords, newSpeaker, wordIndex, allWords) => {
+        if (currentWords.length === 0) return false;
+        
+        const currentSpeaker = getMostLikelySpeaker(currentWords);
+        if (currentSpeaker === newSpeaker) return false;
+        
+        // Look ahead to see if this speaker change is sustained
+        let sustainedCount = 0;
+        for (let i = wordIndex; i < Math.min(wordIndex + 10, allWords.length); i++) {
+          if ((allWords[i].speaker_id || 'speaker_1') === newSpeaker) {
+            sustainedCount++;
+          }
+        }
+        
+        // Only consider it a real speaker change if sustained for at least 5 words
+        return sustainedCount >= 5;
       };
       
       for (let i = 0; i < words.length; i++) {
@@ -171,25 +205,33 @@ const AdvancedInterviewProcessor = () => {
         const wordStart = word.start || 0;
         const wordEnd = word.end || wordStart + 0.5;
         
-        // ONLY break segments on these very specific conditions:
-        const speakerChanged = currentSegment.speaker && currentSegment.speaker !== currentSpeaker;
+        // Check for segmentation conditions
         const veryLongPause = currentSegment.words.length > 0 && 
                              (wordStart - currentSegment.endTime) > VERY_LONG_PAUSE;
-        const segmentTooLong = (wordEnd - currentSegment.startTime) > MAX_SEGMENT_DURATION;
         
-        // Natural conversation break: Complete thought + target duration reached
+        const segmentTooLong = currentSegment.words.length > 0 &&
+                              (wordEnd - currentSegment.startTime) > MAX_SEGMENT_DURATION;
+        
+        // Real speaker change detection
+        const realSpeakerChange = isRealSpeakerChange(currentSegment.words, currentSpeaker, i, words);
+        
+        // Natural conversation break: Complete thought + good duration
         const naturalBreak = currentSegment.words.length > 0 &&
                             (wordEnd - currentSegment.startTime) >= TARGET_SEGMENT_DURATION &&
                             word.text && 
                             (/[.!?]$/.test(word.text.trim()) || 
-                             /\b(¿verdad\?|¿sí\?|¿no\?|entonces|bueno|ok|okay)\b/i.test(word.text));
+                             /\b(¿verdad\?|¿sí\?|¿no\?|entonces|bueno|ok|okay)\b/i.test(word.text)) &&
+                            (wordStart - currentSegment.endTime) > 1.0; // Plus a small pause
         
         // ONLY create new segment if we have a clear reason AND minimum duration
-        const shouldBreak = (speakerChanged || veryLongPause || segmentTooLong || naturalBreak) && 
+        const shouldBreak = (realSpeakerChange || veryLongPause || segmentTooLong || naturalBreak) && 
                            currentSegment.words.length > 0 &&
                            (currentSegment.endTime - currentSegment.startTime) >= MIN_SEGMENT_DURATION;
         
         if (shouldBreak) {
+          // Determine the most likely speaker for this segment
+          const segmentSpeaker = getMostLikelySpeaker(currentSegment.words);
+          
           // Create segment with ALL content preserved
           const segmentText = currentSegment.words.map(w => w.text).join(' ');
           const cleanedText = cleanTranscriptionText(segmentText);
@@ -200,12 +242,17 @@ const AdvancedInterviewProcessor = () => {
             segments.push({
               start_time: formatTime(currentSegment.startTime),
               end_time: formatTime(currentSegment.endTime),
-              speaker: currentSegment.speaker === 'speaker_1' ? 'Speaker_1' : 'Speaker_0',
+              speaker: segmentSpeaker === 'speaker_1' ? 'Speaker_1' : 'Speaker_0',
               confidence: avgConfidence,
               text: cleanedText
             });
             
-            console.log(`Created segment: ${formatTime(currentSegment.startTime)} - ${formatTime(currentSegment.endTime)} (${(currentSegment.endTime - currentSegment.startTime).toFixed(1)}s)`);
+            const duration = currentSegment.endTime - currentSegment.startTime;
+            const breakReason = realSpeakerChange ? 'Speaker Change' : 
+                               veryLongPause ? 'Long Pause' : 
+                               segmentTooLong ? 'Too Long' : 'Natural Break';
+            
+            console.log(`Created segment: ${formatTime(currentSegment.startTime)} - ${formatTime(currentSegment.endTime)} (${duration.toFixed(1)}s) [${breakReason}] Speaker: ${segmentSpeaker}`);
           }
           
           // Start new segment
@@ -213,7 +260,8 @@ const AdvancedInterviewProcessor = () => {
             words: [word],
             speaker: currentSpeaker,
             startTime: wordStart,
-            endTime: wordEnd
+            endTime: wordEnd,
+            speakerConfidence: 1
           };
         } else {
           // Add word to current segment
@@ -228,6 +276,7 @@ const AdvancedInterviewProcessor = () => {
       
       // ALWAYS add the final segment
       if (currentSegment.words.length > 0) {
+        const segmentSpeaker = getMostLikelySpeaker(currentSegment.words);
         const segmentText = currentSegment.words.map(w => w.text).join(' ');
         const cleanedText = cleanTranscriptionText(segmentText);
         const avgConfidence = calculateImprovedConfidence(currentSegment.words);
@@ -235,23 +284,43 @@ const AdvancedInterviewProcessor = () => {
         segments.push({
           start_time: formatTime(currentSegment.startTime),
           end_time: formatTime(currentSegment.endTime),
-          speaker: currentSegment.speaker === 'speaker_1' ? 'Speaker_1' : 'Speaker_0',
+          speaker: segmentSpeaker === 'speaker_1' ? 'Speaker_1' : 'Speaker_0',
           confidence: avgConfidence,
           text: cleanedText
         });
         
-        console.log(`Final segment: ${formatTime(currentSegment.startTime)} - ${formatTime(currentSegment.endTime)} (${(currentSegment.endTime - currentSegment.startTime).toFixed(1)}s)`);
+        const duration = currentSegment.endTime - currentSegment.startTime;
+        console.log(`Final segment: ${formatTime(currentSegment.startTime)} - ${formatTime(currentSegment.endTime)} (${duration.toFixed(1)}s) Speaker: ${segmentSpeaker}`);
       }
       
-      console.log(`✅ Created ${segments.length} natural conversation segments`);
+      console.log(`✅ Created ${segments.length} speaker-continuous segments`);
       
-      // Log segment durations for debugging
+      // Log segment analysis for debugging
       segments.forEach((segment, index) => {
         const startSeconds = parseTimeToSeconds(segment.start_time);
         const endSeconds = parseTimeToSeconds(segment.end_time);
         const duration = endSeconds - startSeconds;
-        console.log(`Segment ${index + 1}: ${segment.start_time} - ${segment.end_time} (${duration.toFixed(1)}s) - ${segment.text.substring(0, 50)}...`);
+        console.log(`Segment ${index + 1}: ${segment.start_time} - ${segment.end_time} (${duration.toFixed(1)}s) ${segment.speaker} - "${segment.text.substring(0, 80)}..."`);
       });
+      
+      // Check for speaker continuity issues
+      let speakerIssues = 0;
+      for (let i = 1; i < segments.length; i++) {
+        const prevSpeaker = segments[i-1].speaker;
+        const currSpeaker = segments[i].speaker;
+        const prevEnd = parseTimeToSeconds(segments[i-1].end_time);
+        const currStart = parseTimeToSeconds(segments[i].start_time);
+        const gap = currStart - prevEnd;
+        
+        if (prevSpeaker === currSpeaker && gap < 3.0) {
+          speakerIssues++;
+          console.warn(`⚠️ Potential speaker continuity issue: Segments ${i} and ${i+1} are same speaker (${currSpeaker}) with only ${gap.toFixed(1)}s gap`);
+        }
+      }
+      
+      if (speakerIssues > 0) {
+        console.warn(`⚠️ Found ${speakerIssues} potential speaker continuity issues that could be merged`);
+      }
       
       return segments;
     }
@@ -327,8 +396,11 @@ const AdvancedInterviewProcessor = () => {
         wordCount: result.words?.length || 0,
         hasText: !!result.text,
         hasSpeakers: result.words?.some(w => w.speaker_id) || false,
-        firstWord: result.words?.[0],
-        lastWord: result.words?.[result.words?.length - 1]
+        speakerDistribution: result.words?.reduce((acc, word) => {
+          const speaker = word.speaker_id || 'unknown';
+          acc[speaker] = (acc[speaker] || 0) + 1;
+          return acc;
+        }, {})
       });
       
       setProgress(80);
@@ -388,35 +460,60 @@ const AdvancedInterviewProcessor = () => {
     return result;
   };
 
-  // Enhanced professional transformation - more conservative
+  // FIXED: Professional transformation ONLY for interviewee (Speaker_1)
   const transformToProfessionalImproved = (text, speaker, companyName = "la compañía") => {
-    if (speaker === "Speaker_1") {
-      // Minimal cleaning for interviewer - preserve questions intact
-      return text.replace(/\s+/g, ' ').trim();
+    // INTERVIEWER (Speaker_0): Keep exactly as spoken for context
+    if (speaker === "Speaker_0") {
+      console.log(`📝 Preserving interviewer question as-is: "${text.substring(0, 50)}..."`);
+      return text.replace(/\s+/g, ' ').trim(); // Only clean spacing
     }
     
-    // Very conservative transformation - preserve meaning and context
+    // INTERVIEWEE (Speaker_1): Apply professional transformation
+    console.log(`🔄 Transforming interviewee response: "${text.substring(0, 50)}..."`);
+    
+    // Professional transformation for interviewee responses
     let professional = text
-      // Only remove obvious filler words
+      // Remove filler words
       .replace(/\beh,?\s*/gi, '')
       .replace(/\bmm+,?\s*/gi, '')
+      .replace(/\bah+,?\s*/gi, '')
+      .replace(/\bbueno,?\s*/gi, '')
+      .replace(/\beste,?\s*/gi, '')
+      .replace(/\bpues,?\s*/gi, '')
       .replace(/\s+/g, ' ')
       .trim();
 
-    // Only apply clear transformations
+    // Transform personal to company perspective
     const transformations = [
       { pattern: /\byo creo que\b/gi, replacement: `En ${companyName} consideramos que` },
       { pattern: /\bcreo que\b/gi, replacement: `${companyName} considera que` },
-      { pattern: /\byo pienso\b/gi, replacement: `En ${companyName} pensamos` },
-      { pattern: /\byo\b/gi, replacement: companyName },
-      { pattern: /\bnosotros\b/gi, replacement: companyName },
+      { pattern: /\byo pienso que\b/gi, replacement: `En ${companyName} pensamos que` },
+      { pattern: /\bpienso que\b/gi, replacement: `${companyName} piensa que` },
+      { pattern: /\byo siento que\b/gi, replacement: `En ${companyName} percibimos que` },
+      { pattern: /\ben mi opinión\b/gi, replacement: `Desde la perspectiva de ${companyName}` },
+      { pattern: /\byo he visto\b/gi, replacement: `${companyName} ha observado` },
+      { pattern: /\bhe visto\b/gi, replacement: `${companyName} ha observado` },
+      { pattern: /\byo necesito\b/gi, replacement: `${companyName} requiere` },
+      { pattern: /\bnecesito\b/gi, replacement: `${companyName} necesita` },
+      { pattern: /\bme gustaría\b/gi, replacement: `${companyName} busca` },
+      { pattern: /\bnosotros tenemos\b/gi, replacement: `${companyName} tiene` },
       { pattern: /\btenemos\b/gi, replacement: `${companyName} tiene` },
-      { pattern: /\bestamos\b/gi, replacement: `${companyName} está` }
+      { pattern: /\bestamos\b/gi, replacement: `${companyName} está` },
+      { pattern: /\byo trabajo\b/gi, replacement: `${companyName} trabaja` },
+      { pattern: /\byo\b/gi, replacement: companyName },
+      { pattern: /\bnosotros\b/gi, replacement: companyName }
     ];
     
     transformations.forEach(({ pattern, replacement }) => {
       professional = professional.replace(pattern, replacement);
     });
+
+    // Improve sentence structure
+    professional = professional
+      .replace(/\bpero\b/gi, 'sin embargo')
+      .replace(/\by también\b/gi, 'además')
+      .replace(/\bmuy bueno\b/gi, 'excelente')
+      .replace(/\bmuy malo\b/gi, 'deficiente');
 
     // Ensure proper capitalization
     if (professional.length > 0) {
@@ -432,6 +529,7 @@ const AdvancedInterviewProcessor = () => {
       professional += '.';
     }
     
+    console.log(`✅ Transformed to: "${professional.substring(0, 50)}..."`);
     return professional;
   };
 
@@ -486,14 +584,12 @@ const AdvancedInterviewProcessor = () => {
     return nameMap[name] || name;
   };
 
-  // Enhanced auto-tagging
-  const autoTagEnhanced = (text) => {
+  // Enhanced auto-tagging - ONLY for interviewee responses
+  const autoTagEnhanced = (text, speaker) => {
     const lowerText = text.toLowerCase();
     
-    // Skip interviewer questions
-    if (lowerText.includes('evalúa') || lowerText.includes('¿') || 
-        lowerText.includes('cómo') || lowerText.includes('qué tal') ||
-        lowerText.includes('me encantaría') || lowerText.includes('me gustaría')) {
+    // ALWAYS mark interviewer segments as interviewer
+    if (speaker === "Speaker_0") {
       return {
         businessArea: "INTERVIEWER",
         sentiment: "INTERVIEWER",
@@ -501,6 +597,8 @@ const AdvancedInterviewProcessor = () => {
         confidence: 1.0
       };
     }
+    
+    // For interviewee responses (Speaker_1), perform analysis
     
     // Detect Best in Class
     const bicKeywords = ["best in class", "mejor práctica", "referente", "líder", "ejemplo", "modelo", "ideal"];
@@ -603,23 +701,24 @@ const AdvancedInterviewProcessor = () => {
     setErrorMessage('');
 
     try {
-      console.log('🎙️ Starting natural conversation transcription...');
+      console.log('🎙️ Starting speaker-continuous transcription...');
       const transcription = await transcribeWithElevenLabsImproved(audioFile);
       
       if (!transcription.success) {
         throw new Error('Transcription failed');
       }
       
-      console.log('📝 Processing natural conversation segments...');
+      console.log('📝 Processing speaker-continuous segments...');
       setProgress(40);
 
       const companyInfo = extractCompanyInfoImproved(audioFile.name);
       const insights = [];
 
       for (const [index, segment] of transcription.segments.entries()) {
-        const tags = autoTagEnhanced(segment.text);
+        // Pass speaker to auto-tagging for proper classification
+        const tags = autoTagEnhanced(segment.text, segment.speaker);
         
-        // Process ALL segments, including interviewer questions for completeness
+        // Apply transformation based on speaker
         const professionalText = transformToProfessionalImproved(
           segment.text, 
           segment.speaker, 
@@ -746,7 +845,7 @@ const AdvancedInterviewProcessor = () => {
     <div className="max-w-6xl mx-auto p-6 bg-white">
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-lg mb-6">
         <h1 className="text-3xl font-bold mb-2">🎙️ Advanced Interview Processor</h1>
-        <p className="text-blue-100">Natural conversation segments with complete context preservation</p>
+        <p className="text-blue-100">Professional transformation for interviewee responses only</p>
       </div>
 
       {/* Step 1: Setup */}
@@ -833,7 +932,7 @@ const AdvancedInterviewProcessor = () => {
               disabled={!audioFile || apiStatus !== 'connected' || processing}
               className="w-full px-4 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
             >
-              {processing ? 'Processing...' : '🚀 Start Natural Conversation Processing'}
+              {processing ? 'Processing...' : '🚀 Start Processing (Interviewee Transformation Only)'}
             </button>
           </div>
         </div>
@@ -860,7 +959,7 @@ const AdvancedInterviewProcessor = () => {
 
             <div className="text-center text-gray-600">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-              Creating natural conversation segments...
+              Processing with selective transformation...
             </div>
           </div>
         </div>
@@ -872,16 +971,22 @@ const AdvancedInterviewProcessor = () => {
           <div className="bg-gray-50 p-6 rounded-lg">
             <h2 className="text-xl font-semibold mb-4">Step 3: Results</h2>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
               <div className="bg-white p-4 rounded-lg border">
                 <div className="text-2xl font-bold text-blue-600">{processedInsights.length}</div>
-                <div className="text-sm text-gray-600">Natural Segments</div>
+                <div className="text-sm text-gray-600">Total Segments</div>
+              </div>
+              <div className="bg-white p-4 rounded-lg border">
+                <div className="text-2xl font-bold text-purple-600">
+                  {processedInsights.filter(i => i.speaker === 'Speaker_0').length}
+                </div>
+                <div className="text-sm text-gray-600">Interviewer (Preserved)</div>
               </div>
               <div className="bg-white p-4 rounded-lg border">
                 <div className="text-2xl font-bold text-green-600">
-                  {processedInsights.filter(i => i.confidence_level === 'High').length}
+                  {processedInsights.filter(i => i.speaker === 'Speaker_1').length}
                 </div>
-                <div className="text-sm text-gray-600">High Confidence</div>
+                <div className="text-sm text-gray-600">Interviewee (Transformed)</div>
               </div>
               <div className="bg-white p-4 rounded-lg border">
                 <div className="text-2xl font-bold text-orange-600">
@@ -928,23 +1033,25 @@ const AdvancedInterviewProcessor = () => {
             {/* Sample Results */}
             {processedInsights.length > 0 && (
               <div className="bg-white border rounded-lg p-4">
-                <h3 className="font-semibold mb-4">Sample Natural Conversation Segments</h3>
+                <h3 className="font-semibold mb-4">Sample Results (Interviewer vs Interviewee)</h3>
                 <div className="space-y-4">
-                  {processedInsights.slice(0, 3).map((insight, index) => (
-                    <div key={index} className="border-l-4 border-blue-500 pl-4 py-2">
+                  {processedInsights.slice(0, 4).map((insight, index) => (
+                    <div key={index} className={`border-l-4 pl-4 py-2 ${insight.speaker === 'Speaker_0' ? 'border-purple-500 bg-purple-50' : 'border-green-500 bg-green-50'}`}>
                       <div className="text-sm text-gray-600 mb-1">
-                        {insight.start_time} - {insight.end_time} | {insight.speaker} | Confidence: {insight.confidence_level}
+                        {insight.start_time} - {insight.end_time} | {insight.speaker === 'Speaker_0' ? '🎤 Interviewer (Preserved)' : '👤 Interviewee (Transformed)'} | Confidence: {insight.confidence_level}
                       </div>
                       <div className="text-sm mb-2">
                         <strong>Original:</strong> {insight.original_text}
                       </div>
                       <div className="text-sm mb-2">
-                        <strong>Professional:</strong> {insight.professional_text}
+                        <strong>{insight.speaker === 'Speaker_0' ? 'Preserved' : 'Professional'}:</strong> {insight.professional_text}
                       </div>
-                      <div className="text-xs text-gray-500">
-                        Business Area: {insight.business_area} | Sentiment: {insight.sentiment} | 
-                        Subject: {insight.subject_company}
-                      </div>
+                      {insight.speaker === 'Speaker_1' && (
+                        <div className="text-xs text-gray-500">
+                          Business Area: {insight.business_area} | Sentiment: {insight.sentiment} | 
+                          Subject: {insight.subject_company}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
