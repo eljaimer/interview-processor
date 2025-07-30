@@ -893,11 +893,11 @@ const AdvancedInterviewProcessor = () => {
     // PHASE 1: ULTRA-AGGRESSIVE CLEANUP - Remove ALL fillers and artifacts
     const ultraAggressiveCleanupPatterns = [
       // Remove ALL filler words and sounds (expanded list)
-      /\b(eh|ah|um|mm|mmm|mmmm|hmm|este|esto|pues|bueno|o sea|como que|digamos|verdad|no sé|sabes|entonces|así|como|tipo|okey|ok|sí|bueno)\b/gi,
+      /\b(eh|ah|um|mm|mmm|mmmm|hmm|este|esto|pues|bueno|o sea|como que|digamos|verdad|no sé|sabes|entonces|así|como|tipo|okey|ok|sí|bueno|ora)\b/gi,
       // Remove extended sounds and hesitations
       /\b(ehhh|ahhh|ummm|mmmm|eeee|aaaa|yyyy|siii|nooo|hastaaa|queee|ahoraaa)\b/gi,
-      // Remove ALL repetitive words completely
-      /\b(y y|que que|es es|la la|el el|de de|en en|con con|por por|para para|se se|me me|te te|son son|hay hay|ahora ahora|han han)\b/gi,
+      // Remove ALL repetitive words completely - ENHANCED
+      /\b(y y|que que|es es|la la|el el|de de|en en|con con|por por|para para|se se|me me|te te|son son|hay hay|ahora ahora|han han|ora ora|más más)\b/gi,
       // Remove incomplete thoughts and trailing words
       /\b(o sea que|es decir que|como te digo|como te comento|la verdad es que|al final|es más|por mencionar|¿verdad\?)\b/gi,
       // Remove question marks and incomplete sentences at the end
@@ -912,10 +912,10 @@ const AdvancedInterviewProcessor = () => {
       /\s{2,}/g,
       // Remove trailing incomplete phrases and conjunctions
       /[,\s]+(y|pero|que|cuando|donde|como|entonces)\s*$/gi,
-      // Remove leading fillers at start of sentences
-      /^(ok|okey|bueno|este|pues|eh|ah|sí|entonces)[,\s]*/gi,
-      // Remove mid-sentence fillers
-      /[,\s]+(eh|ah|mm|mmm|este|pues|bueno|o sea|no sé)[,\s]*/gi,
+      // Remove leading fillers at start of sentences - ENHANCED
+      /^(ok|okey|bueno|este|pues|eh|ah|sí|entonces|ora)[,\s]*/gi,
+      // Remove mid-sentence fillers - ENHANCED
+      /[,\s]+(eh|ah|mm|mmm|este|pues|bueno|o sea|no sé|ora)[,\s]*/gi,
       // Remove redundant phrases
       /\b(es más|al final|por mencionar|como te digo)\b[,\s]*/gi
     ];
@@ -926,17 +926,21 @@ const AdvancedInterviewProcessor = () => {
     
     // PHASE 1.5: STRUCTURAL FIXES - Fix specific problematic patterns
     transformed = transformed
-      // Fix "es, es" and similar repetitions
+      // Fix "es, es" and similar repetitions - ENHANCED
       .replace(/\bes,\s*es\b/gi, 'es')
       .replace(/\bson,\s*son\b/gi, 'son')
       .replace(/\bhay,\s*hay\b/gi, 'hay')
       .replace(/\bahora,\s*ahora\b/gi, 'ahora')
+      .replace(/\bora,?\s*ora\b/gi, 'ahora')
+      .replace(/\bmás,?\s*más\b/gi, 'además')
       // Fix "porque al final" patterns
       .replace(/\bporque al final,?\s*/gi, 'porque ')
       // Remove "no sé" completely
       .replace(/\bno sé,?\s*/gi, ' ')
       // Fix "hasta" extensions
       .replace(/\bhastaaa?\b/gi, 'hasta')
+      // Remove leading "Sí" completely
+      .replace(/^sí,?\s*/gi, '')
       // Clean up remaining artifacts
       .replace(/,\s*,/g, ',')
       .replace(/\s+/g, ' ')
@@ -956,25 +960,31 @@ const AdvancedInterviewProcessor = () => {
       // Remove leading conjunctions and fillers
       processed = processed.replace(/^(y|pero|entonces|así|como|que|ahora|además)\s+/gi, '');
       
-      // Fix specific structural issues from your example
+      // INTELLIGENT FLEXIBLE TRANSFORMATIONS - Works for any interview content
       processed = processed
-        // Fix distribution language specifically
-        .replace(/\bhay varios distribuidores\b/gi, 'trabajan con múltiples distribuidores')
-        .replace(/\bhan salido distribuidores\b/gi, 'operan distribuidores')
-        .replace(/\bdentro del mismo país que van a distribuir\b/gi, 'en el mismo mercado que manejan diferentes productos')
-        .replace(/\blo distribuye uno, pero\b/gi, 'un distribuidor maneja algunos productos, mientras que')
-        .replace(/\blo va a distribuir otro\b/gi, 'otro distribuidor maneja productos diferentes')
+        // GENERIC DISTRIBUTION LANGUAGE IMPROVEMENTS
+        .replace(/\b(hay|existen|tienen)\s+(varios?|muchos?|múltiples?)\s+(distribuidores?|proveedores?|canales?)\b/gi, 'presenta una estructura de distribución compleja')
+        .replace(/\b(han salido|aparecieron|surgieron)\s+(distribuidores?|proveedores?)\b/gi, 'operan múltiples distribuidores')
+        .replace(/\bdentro del mismo (país|mercado|región)\s+que\s+(van a|manejan|distribuyen)\b/gi, 'en el mismo mercado que gestionan')
         
-        // Fix complexity language
-        .replace(/\bes bien (complejo|difícil|complicado)\b/gi, 'resulta $1')
-        .replace(/\bpoder trabajar así\b/gi, 'coordinar eficientemente')
-        .replace(/\bson complejos cuando son tantas cabecillas\b/gi, 'se complican con múltiples puntos de contacto')
-        .replace(/\bcon tanta persona que está llevando el catálogo\b/gi, 'cuando múltiples personas gestionan el portafolio')
+        // GENERIC COMPLEXITY AND CHALLENGE LANGUAGE
+        .replace(/\bes\s+(bien|muy|bastante)\s+(complejo|difícil|complicado)\b/gi, 'resulta $2')
+        .replace(/\b(poder|lograr)\s+(trabajar|operar|coordinar)\s+(así|de esta manera|de esta forma)\b/gi, 'coordinar eficientemente con esta estructura')
+        .replace(/\bson\s+(complejos?|difíciles?)\s+cuando\s+(son|hay)\s+(tantas?|muchas?)\s+(cabecillas?|personas?|contactos?)\b/gi, 'se complican con múltiples puntos de contacto')
+        .replace(/\bcon\s+(tanta|mucha)\s+persona\s+que\s+(está|van)\s+(llevando|manejando|gestionando)\s+(el\s+)?(catálogo|portafolio|productos?)\b/gi, 'cuando múltiples personas gestionan el portafolio')
         
-        // Fix work relationship language
-        .replace(/\byo lo estoy trabajando\b/gi, 'trabajamos en esto')
-        .replace(/\blo trabajo muy bien con el equipo de\b/gi, 'mantenemos una excelente colaboración con')
-        .replace(/\bque ellos están empezando a regionalizarse\b/gi, 'que está implementando una estrategia de regionalización')
+        // GENERIC WORK RELATIONSHIP IMPROVEMENTS
+        .replace(/\b(yo\s+)?(lo\s+)?(estoy\s+)?trabajando\b/gi, 'trabajamos en esto')
+        .replace(/\b(lo\s+)?trabajo\s+(muy\s+)?(bien|excelente)\s+con\s+(el\s+equipo\s+de\s+)?([^,\.]+)\b/gi, 'mantenemos una excelente colaboración con $5')
+        .replace(/\bque\s+(ellos?\s+)?(están|van)\s+(empezando\s+a\s+|comenzando\s+a\s+)?(regionalizarse|expandirse|crecer)\b/gi, 'que está implementando una estrategia de crecimiento')
+        
+        // GENERIC PRODUCT/CATEGORY HANDLING - Put specific products in parentheses
+        .replace(/\b([a-zA-ZáéíóúñÁÉÍÓÚÑ]+\s+[a-zA-ZáéíóúñÁÉÍÓÚÑ]+)\s+(lo\s+)?(distribuye|maneja|gestiona)\s+(uno|otro|alguien)\b/gi, 'diferentes categorías ($1)')
+        .replace(/\b(pero|mientras\s+que)\s+([a-zA-ZáéíóúñÁÉÍÓÚÑ]+\s+[a-zA-ZáéíóúñÁÉÍÓÚÑ]+)\s+(lo\s+)?(va\s+a\s+)?(distribuir|manejar|gestionar)\s+(otro|alguien)\b/gi, 'y otras categorías ($2)')
+        
+        // GENERIC BUSINESS LANGUAGE UPGRADES
+        .replace(/\b(trabajamos|manejamos|operamos)\s+con\s+([^,\.]+)\b/gi, 'mantenemos operaciones con $2')
+        .replace(/\b(tenemos|mantenemos)\s+(una\s+)?(buena|excelente|sólida)\s+relación\s+con\s+([^,\.]+)\b/gi, 'mantenemos una relación comercial sólida con $4')
         
         // Clean up remaining artifacts
         .replace(/,\s*,/g, ',')
@@ -984,49 +994,92 @@ const AdvancedInterviewProcessor = () => {
       return processed;
     }).filter(s => s.length > 5);
     
-    // PHASE 2.5: INTELLIGENT CONTENT RESTRUCTURING - Group related ideas
-    let restructuredContent = [];
-    let currentContext = '';
-    let supportingDetails = [];
+    // PHASE 2.5: INTELLIGENT CONTENT RECONSTRUCTION - Flexible for any business context
+    let finalContent = [];
+    
+    // Extract key business elements using flexible patterns
+    let businessContext = '';
+    let challenges = [];
+    let relationships = [];
+    let examples = [];
+    let operations = [];
     
     sentences.forEach(sentence => {
-      // Identify main business contexts
-      if (sentence.toLowerCase().includes('en el caso de') || 
-          sentence.toLowerCase().includes('trabajan con') ||
-          sentence.toLowerCase().includes('mantenemos') ||
-          sentence.toLowerCase().includes('resulta complejo') ||
-          sentence.toLowerCase().includes('presenta desafíos')) {
-        
-        // Save previous context if exists
-        if (currentContext && supportingDetails.length > 0) {
-          restructuredContent.push(currentContext + '. ' + supportingDetails.join('. '));
-        } else if (currentContext) {
-          restructuredContent.push(currentContext);
-        }
-        
-        // Start new context
-        currentContext = sentence;
-        supportingDetails = [];
-        
-      } else if (sentence.length > 10) {
-        // Add as supporting detail
-        supportingDetails.push(sentence);
+      const lowerSentence = sentence.toLowerCase();
+      
+      // Business context patterns (flexible for any supplier)
+      if (lowerSentence.includes('en el caso de') || 
+          lowerSentence.includes('con respecto a') ||
+          lowerSentence.includes('hablando de') ||
+          lowerSentence.includes('presenta una estructura')) {
+        businessContext = sentence;
+      } 
+      // Challenge patterns (generic)
+      else if (lowerSentence.includes('complejo') || 
+               lowerSentence.includes('desafío') || 
+               lowerSentence.includes('coordinación') ||
+               lowerSentence.includes('difícil') ||
+               lowerSentence.includes('problema')) {
+        challenges.push(sentence);
+      } 
+      // Relationship patterns (flexible)
+      else if ((lowerSentence.includes('con ') && 
+                (lowerSentence.includes('mantenemos') || 
+                 lowerSentence.includes('trabajamos') || 
+                 lowerSentence.includes('relación') ||
+                 lowerSentence.includes('colaboración')))) {
+        relationships.push(sentence);
+      } 
+      // Example patterns (products, categories, specific cases)
+      else if (lowerSentence.includes('por ejemplo') ||
+               lowerSentence.includes('categorías') ||
+               lowerSentence.includes('productos') ||
+               lowerSentence.includes('diferentes') ||
+               sentence.includes('(') && sentence.includes(')')) {
+        examples.push(sentence);
+      }
+      // Operations patterns
+      else if (lowerSentence.includes('distribuidor') || 
+               lowerSentence.includes('operaciones') ||
+               lowerSentence.includes('gestión') ||
+               lowerSentence.includes('manejo')) {
+        operations.push(sentence);
       }
     });
     
-    // Add final context
-    if (currentContext) {
-      if (supportingDetails.length > 0) {
-        restructuredContent.push(currentContext + '. ' + supportingDetails.join('. '));
-      } else {
-        restructuredContent.push(currentContext);
-      }
-    } else if (supportingDetails.length > 0) {
-      // If no clear context, create one from the details
-      restructuredContent.push(supportingDetails.join('. '));
+    // Reconstruct in logical business order
+    if (businessContext) {
+      finalContent.push(businessContext);
     }
     
-    transformed = restructuredContent.join('. ');
+    if (operations.length > 0) {
+      finalContent.push(operations.join('. '));
+    }
+    
+    if (challenges.length > 0) {
+      finalContent.push(challenges.join('. '));
+    }
+    
+    if (examples.length > 0) {
+      // Add "Por ejemplo" if not already present
+      const exampleText = examples.join('. ');
+      if (!exampleText.toLowerCase().includes('por ejemplo')) {
+        finalContent.push('Por ejemplo, ' + exampleText);
+      } else {
+        finalContent.push(exampleText);
+      }
+    }
+    
+    if (relationships.length > 0) {
+      finalContent.push(relationships.join('. '));
+    }
+    
+    // If no clear structure, just clean up what we have
+    if (finalContent.length === 0 && sentences.length > 0) {
+      finalContent.push(sentences.join('. '));
+    }
+    
+    transformed = finalContent.join('. ');
     
     // PHASE 4: PROFESSIONAL LANGUAGE TRANSFORMATION + RETAILER PERSPECTIVE WITH NATURAL VARIATION
     const getRandomVariation = (alternatives) => {
