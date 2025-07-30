@@ -15,16 +15,17 @@ const AdvancedInterviewProcessor = () => {
   const fileInputRef = useRef(null);
 
   // ML Training State
-  const [mlEnabled, setMlEnabled] = useState(false);
-  const [trainingData, setTrainingData] = useState([]);
-  const [trainingStats, setTrainingStats] = useState({
+  const [trainingData, setTrainingData] = React.useState([]);
+  const [trainingStats, setTrainingStats] = React.useState({
     interviews: 0,
     corrections: 0,
     accuracy: 0
   });
+  const [mlEnabled, setMlEnabled] = React.useState(false);
+  const [showTrainingHistory, setShowTrainingHistory] = React.useState(false);
 
-  // Enhanced competency mapping
-  const competencyMap = {
+  // Business area mapping
+  const businessAreaMap = {
     "1001": "Comunicación",
     "1002": "Diferenciación", 
     "1003": "Facilidad para hacer negocios",
@@ -114,6 +115,35 @@ const AdvancedInterviewProcessor = () => {
       corrections: data.reduce((sum, item) => sum + (item.corrections?.length || 0), 0),
       accuracy: data.length > 0 ? Math.min(95, 65 + (data.length * 3)) : 0
     });
+  };
+
+  // Export training data
+  const exportTrainingData = () => {
+    const dataStr = JSON.stringify(trainingData, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = `interview_training_data_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  };
+
+  // Clear training data
+  const clearTrainingData = () => {
+    if (confirm('Are you sure you want to clear all training data? This cannot be undone.')) {
+      localStorage.removeItem('interviewMLTraining');
+      setTrainingData([]);
+      setTrainingStats({
+        interviews: 0,
+        corrections: 0,
+        accuracy: 0
+      });
+      alert('✅ Training data cleared successfully');
+    }
   };
 
   // Handle corrected CSV upload
@@ -1160,7 +1190,86 @@ const AdvancedInterviewProcessor = () => {
               className="hidden"
             />
           </label>
+          
+          <button
+            onClick={() => setShowTrainingHistory(!showTrainingHistory)}
+            className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+          >
+            {showTrainingHistory ? '🔼 Hide' : '🔽 Show'} Training History
+          </button>
+          
+          <button
+            onClick={exportTrainingData}
+            disabled={trainingData.length === 0}
+            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+          >
+            📥 Export Training Data
+          </button>
+          
+          <button
+            onClick={clearTrainingData}
+            disabled={trainingData.length === 0}
+            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
+          >
+            🗑️ Clear All Data
+          </button>
         </div>
+        
+        {/* TRAINING HISTORY SECTION */}
+        {showTrainingHistory && (
+          <div className="mt-6 bg-white border rounded-lg p-4">
+            <h3 className="font-semibold text-gray-800 mb-4">📋 Training Data History</h3>
+            
+            {trainingData.length === 0 ? (
+              <div className="text-gray-500 text-center py-8">
+                No training data uploaded yet. Upload your first corrected CSV to start building the ML model.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {trainingData.map((item, index) => (
+                  <div key={index} className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <div className="font-medium text-gray-800">{item.filename}</div>
+                        <div className="text-sm text-gray-500">
+                          Uploaded: {new Date(item.uploadDate).toLocaleDateString()} at {new Date(item.uploadDate).toLocaleTimeString()}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-lg font-bold text-green-600">{item.corrections?.length || 0}</div>
+                        <div className="text-sm text-gray-500">Corrections</div>
+                      </div>
+                    </div>
+                    
+                    {item.corrections && item.corrections.length > 0 && (
+                      <div className="mt-3">
+                        <div className="text-sm font-medium text-gray-700 mb-2">Sample Corrections:</div>
+                        <div className="bg-gray-50 rounded p-3 text-xs">
+                          {item.corrections.slice(0, 3).map((correction, corrIndex) => (
+                            <div key={corrIndex} className="mb-2 last:mb-0">
+                              {correction.corrected_original && (
+                                <div><strong>Transcription:</strong> "{correction.original}" → "{correction.corrected_original}"</div>
+                              )}
+                              {correction.corrected_professional && (
+                                <div><strong>Transformation:</strong> "{correction.professional}" → "{correction.corrected_professional}"</div>
+                              )}
+                              {correction.notes && (
+                                <div><strong>Notes:</strong> {correction.notes}</div>
+                              )}
+                            </div>
+                          ))}
+                          {item.corrections.length > 3 && (
+                            <div className="text-gray-500">... and {item.corrections.length - 3} more corrections</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Step 1: Setup */}
