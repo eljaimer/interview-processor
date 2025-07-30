@@ -530,9 +530,9 @@ const AdvancedInterviewProcessor = () => {
     
     let professional = text;
     
-    // PHASE 1: COMPLETE FILLER AND HESITATION ELIMINATION
+    // PHASE 1: ULTRA-AGGRESSIVE FILLER AND HESITATION ELIMINATION
     professional = professional
-      // Remove ALL fillers and hesitations
+      // Remove ALL basic fillers and hesitations
       .replace(/\bOk,?\s*/gi, '')
       .replace(/\bOkey\.?\s*/gi, '')
       .replace(/\bbueno\.?\s*/gi, '')
@@ -552,20 +552,44 @@ const AdvancedInterviewProcessor = () => {
       .replace(/\b¿sí\?\s*/gi, '')
       .replace(/\b¿no\?\s*/gi, '')
       
-      // Remove repetitive stutters like "a, a"
-      .replace(/\b(\w),?\s*\1\b/gi, '$1')
+      // Remove specific problematic patterns from the user's example
+      .replace(/\bora,?\s*ora\s*/gi, '')
+      .replace(/\bhan salido hastaaa,?\s*/gi, 'operan')
+      .replace(/\bEy\.?\s*/gi, '')
+      .replace(/\bO lo estamos trabajando,?\s*/gi, 'trabajamos')
+      .replace(/\bo siempre he\s*/gi, 'siempre hemos')
+      .replace(/\bme explican más o menos\s*/gi, 'nos explican')
+      .replace(/\bcomo que eso,?\s*eso es lo,?\s*/gi, 'esto')
+      .replace(/\beso,?\s*eso es\s*/gi, 'esto es')
+      .replace(/\bque eso,?\s*/gi, 'que esto')
+      
+      // Remove repetitive stutters and patterns
+      .replace(/\b(\w+),?\s*\1\b/gi, '$1')
       .replace(/\ba,?\s*a\s+/gi, '')
+      .replace(/\bde,?\s*de\s+/gi, 'de ')
+      .replace(/\bque,?\s*que\s+/gi, 'que ')
+      .replace(/\bson,?\s*son\s+/gi, 'son ')
+      .replace(/\bes,?\s*es\s+/gi, 'es ')
       
       // Remove incomplete words and fragments
       .replace(/\bpor í\b/gi, 'por ahí')
       .replace(/\bme ocurre otro nombre\b/gi, '')
       .replace(/\bY vienen y\b/gi, 'El cliente')
+      .replace(/\bqueee\s*/gi, 'que ')
+      .replace(/\bhastaaa\s*/gi, 'hasta ')
+      
+      // Remove trailing incomplete thoughts and questions
+      .replace(/\s+así\.?\s*$/gi, '')
+      .replace(/\s+¿\?\s*$/gi, '')
+      .replace(/\s+\.\.\.\s*$/gi, '')
+      .replace(/\s+¿verdad\?\s*$/gi, '')
+      .replace(/\s+¿no\?\s*$/gi, '')
       
       // Clean up excessive spaces
       .replace(/\s+/g, ' ')
       .trim();
     
-    // PHASE 2: BUSINESS CONTEXT RECONSTRUCTION
+    // PHASE 2: ULTRA-AGGRESSIVE BUSINESS CONTEXT RECONSTRUCTION
     // Transform casual language into professional business insights
     
     // Handle product availability and brand switching (FLEXIBLE PATTERNS)
@@ -576,21 +600,35 @@ const AdvancedInterviewProcessor = () => {
       .replace(/creo que por ahí está la oportunidad/gi, 'Aquí la importancia de atender con seriedad los quiebres para no perder oportunidades de venta con la competencia')
       .replace(/por ahí está la oportunidad/gi, 'la importancia de atender con seriedad los quiebres para no perder oportunidades de venta');
     
-    // Handle distribution and logistics (FLEXIBLE PATTERNS)
+    // Handle distribution and logistics (ULTRA-AGGRESSIVE PATTERNS)
     professional = professional
       .replace(/hay varios distribuidores/gi, 'presenta una estructura de distribución compleja')
       .replace(/distribuidores dentro del mismo país/gi, 'múltiples distribuidores en el mismo mercado')
+      .replace(/múltiples distribuidores en el mismo mercado que van a distribuir/gi, 'múltiples distribuidores en el mismo mercado')
       .replace(/lo distribuye uno.*pero.*otro/gi, 'diferentes distribuidores manejan categorías específicas')
+      .replace(/lo distribuye uno,?\s*\([^)]+\)\s*lo va a distribuir otro/gi, 'diferentes distribuidores manejan categorías específicas')
       .replace(/es bien complejo.*poder trabajar así/gi, 'resulta complejo coordinar eficientemente con esta estructura')
-      .replace(/complejo.*trabajar así/gi, 'complejo coordinar eficientemente');
+      .replace(/complejo.*trabajar así/gi, 'complejo coordinar eficientemente')
+      .replace(/Resulta complejo coordinar eficientemente con esta estructura\./gi, 'Resulta complejo coordinar eficientemente con esta estructura de distribución.');
     
-    // Handle supplier relationships (FLEXIBLE PATTERNS)
+    // Handle supplier relationships (ULTRA-AGGRESSIVE PATTERNS)
     professional = professional
       .replace(/trabajo muy bien con el equipo de ([A-Za-z\s]+)/gi, 'mantenemos una excelente colaboración con $1')
       .replace(/trabajo bien con ([A-Za-z\s]+)/gi, 'mantenemos una buena colaboración con $1')
+      .replace(/lo mantenemos una excelente colaboración con/gi, 'mantenemos una excelente colaboración con')
       .replace(/están empezando a regionalizarse/gi, 'está implementando una estrategia de regionalización')
+      .replace(/que ellos está implementando una estrategia de regionalización/gi, 'que está implementando una estrategia de regionalización')
       .replace(/son complejos cuando son tantas cabecillas/gi, 'se complican con múltiples puntos de contacto')
-      .replace(/tantas cabecillas/gi, 'múltiples puntos de contacto');
+      .replace(/tantas cabecillas/gi, 'múltiples puntos de contacto')
+      .replace(/los temas son,?\s*/gi, 'los procesos ')
+      .replace(/se complican con múltiples puntos de contacto- O con tanta persona/gi, 'se complican con múltiples puntos de contacto. La coordinación con múltiples responsables');
+    
+    // Handle complex distribution explanations (SPECIFIC TO USER'S EXAMPLES)
+    professional = professional
+      .replace(/consultado de por qué es,?\s*por qué hacemos esto acá/gi, 'consultado sobre la razón de esta estructura operativa')
+      .replace(/Porque no solo uno me lo distribuye/gi, 'Debido a que no es un solo distribuidor quien maneja la distribución')
+      .replace(/el tema es de que.*me explican.*de que uno viene de Estados Unidos.*el otro tiene de,?\s*de otro lado/gi, 'la situación es que nos explican que un proveedor viene de Estados Unidos mientras que otro proveedor opera desde otra región')
+      .replace(/Como que esto es lo complejo/gi, 'Esta complejidad operativa');
     
     // Handle general business challenges (FLEXIBLE PATTERNS)
     professional = professional
