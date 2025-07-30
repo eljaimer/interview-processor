@@ -1519,51 +1519,277 @@ const AdvancedInterviewProcessor = () => {
       'sentiment_code', 'sentiment', 'country_specific', 'countries',
       'is_best_in_class', 'needs_review', 'interviewer_type',
       'processing_date', 'confidence_level',
-      
-      // NEW: Correction columns for ML training
-      'corrected_original_text', 'corrected_professional_text', 'corrected_business_area_code',
-      'corrected_suggested_business_areas', 'corrected_sentiment_code', 'corrected_subject_company_code',
-      'correction_notes'
+      // Add correction columns for ML training (3 ESSENTIAL COLUMNS)
+      'corrected_original_text', // For transcription and segmentation corrections
+      'corrected_professional_text', // Main focus - the final transformed comment
+      'correction_notes' // Brief notes for ML learning
     ];
-    
-    const csvRows = [headers.join(',')];
     
     insights.forEach(insight => {
       // Generate suggested business area names
       const suggestedCodes = insight.suggested_business_areas.split(':');
       const suggestedNames = suggestedCodes.map(code => 
-        competencyMap[code]?.name || code
-      ).join(' : ');
+        businessAreas.find(area => area.code === code)?.name || 'Unknown'
+      ).join(':');
       
-      const row = headers.map(header => {
-        let value = '';
-        
-        if (header === 'suggested_business_area_names') {
-          value = suggestedNames;
-        } else if (header.startsWith('corrected_')) {
-          // Leave correction columns empty for user to fill
-          value = '';
-        } else if (header === 'correction_notes') {
-          // Provide guidance in the notes column
-          if (insight.speaker === 'Speaker_0') {
-            value = 'Interviewer - no corrections needed';
-          } else {
-            value = 'Add corrections here. Use |SPLIT| to split segments, combine text to join segments';
-          }
-        } else {
-          value = insight[header] || '';
-        }
-        
-        // Escape commas and quotes in CSV
-        return `"${String(value).replace(/"/g, '""')}"`;
-      });
-      csvRows.push(row.join(','));
+      csvData.push([
+        insight.file_name, insight.start_time, insight.end_time, insight.speaker,
+        insight.confidence, insight.original_text, insight.professional_text,
+        insight.english_translation, insight.respondent_company, insight.respondent_company_code,
+        insight.subject_company_code, insight.subject_company, insight.business_area_code,
+        insight.business_area, insight.suggested_business_areas, suggestedNames,
+        insight.sentiment_code, insight.sentiment, insight.country_specific,
+        insight.countries, insight.is_best_in_class, insight.needs_review,
+        insight.interviewer_type, insight.processing_date, insight.confidence_level,
+        // Add empty correction columns for user input (3 ESSENTIAL COLUMNS)
+        '', // corrected_original_text - for transcription and segmentation fixes
+        '', // corrected_professional_text - for transformation improvements
+        ''  // correction_notes - for ML guidance
+      ]);
     });
     
-    setCsvContent(csvRows.join('\n'));
-    setProcessing(false);
+    return csvData;
   };
+  
+  const downloadCSV = (csvData, filename) => {
+    const csvContent = csvData.map(row => 
+      row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+    ).join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+  
+  // MUCH MORE AGGRESSIVE RETAILER PERSPECTIVE TRANSFORMATION
+  // Now I'll enhance the transformation to be much more comprehensive in converting to retailer perspective
+  
+  // Find the existing transformation function and enhance it
+  const enhanceRetailerPerspectiveTransformations = (professionalTransformations, company) => {
+    // Add much more comprehensive retailer perspective patterns
+    const enhancedTransformations = [
+      ...professionalTransformations,
+      
+      // COMPREHENSIVE FIRST PERSON TO RETAILER PERSPECTIVE
+      // Basic first person patterns - MUCH MORE AGGRESSIVE
+      { 
+        pattern: /\b(yo|nosotros|nuestro|nuestra|nuestros|nuestras)\s+(creo|pienso|considero|opino|diría|siento|veo|observo|noto|encuentro)\s+que\b/gi, 
+        replacement: () => getRandomVariation([
+          `En ${company} creemos que`,
+          `Creemos que`,
+          `En ${company} consideramos que`,
+          `Consideramos que`,
+          `Desde la perspectiva de ${company}`,
+          `En ${company} evaluamos que`
+        ])
+      },
+      
+      // Work and operations - ENHANCED
+      { 
+        pattern: /\b(yo|nosotros)\s+(trabajo|trabajamos|manejo|manejamos|opero|operamos|gestiono|gestionamos)\b/gi, 
+        replacement: () => getRandomVariation([
+          `En ${company} trabajamos`,
+          `Trabajamos`,
+          `En ${company} operamos`,
+          `Operamos`,
+          `Aquí en ${company} manejamos`,
+          `En ${company} gestionamos`
+        ])
+      },
+      
+      // Experience and observations - COMPREHENSIVE
+      { 
+        pattern: /\b(yo|nosotros)\s+(he|hemos)\s+(visto|notado|observado|encontrado|experimentado)\s+que\b/gi, 
+        replacement: () => getRandomVariation([
+          `En ${company} hemos observado que`,
+          `Hemos visto que`,
+          `En ${company} hemos identificado que`,
+          `Desde ${company} hemos notado que`,
+          `En nuestra experiencia en ${company}`,
+          `Aquí en ${company} hemos comprobado que`
+        ])
+      },
+      
+      // Supplier relationships - SPECIFIC PATTERNS
+      { 
+        pattern: /\b(yo|nosotros)\s+(trabajo|trabajamos|manejo|manejamos)\s+(con|muy\s+bien\s+con)\s+([^,\.]+)\b/gi, 
+        replacement: (match, pronoun, verb, prep, supplier) => getRandomVariation([
+          `En ${company} trabajamos con ${supplier}`,
+          `Con ${supplier} trabajamos`,
+          `Aquí en ${company} manejamos la relación con ${supplier}`,
+          `${supplier} es un proveedor con el que trabajamos en ${company}`,
+          `En ${company} mantenemos operaciones con ${supplier}`
+        ])
+      },
+      
+      // Multiple suppliers context - NEW PATTERN
+      { 
+        pattern: /\b(yo|nosotros)\s+(trabajo|trabajamos)\s+con\s+(varios|muchos|múltiples)\s+(proveedores|distribuidores|socios)\b/gi, 
+        replacement: () => getRandomVariation([
+          `Aquí en ${company} trabajamos con varios proveedores, por eso es importante que`,
+          `En ${company} manejamos múltiples proveedores, por lo tanto`,
+          `Dado que en ${company} operamos con diversos proveedores`,
+          `En ${company} trabajamos con múltiples socios comerciales, por eso`
+        ])
+      },
+      
+      // Company priorities and values - ENHANCED
+      { 
+        pattern: /\b(para\s+mí|para\s+nosotros)\s+(es\s+importante|es\s+fundamental|es\s+clave)\b/gi, 
+        replacement: () => getRandomVariation([
+          `Para ${company} es fundamental`,
+          `En ${company} consideramos prioritario`,
+          `Para nosotros en ${company} es clave`,
+          `En ${company} es esencial`,
+          `Desde ${company} priorizamos`
+        ])
+      },
+      
+      // Expectations and requirements - COMPREHENSIVE
+      { 
+        pattern: /\b(yo|nosotros)\s+(espero|esperamos|necesito|necesitamos|requiero|requerimos)\s+que\b/gi, 
+        replacement: () => getRandomVariation([
+          `En ${company} esperamos que`,
+          `Esperamos que`,
+          `En ${company} necesitamos que`,
+          `Para ${company} es importante que`,
+          `Desde ${company} requerimos que`
+        ])
+      },
+      
+      // Decision making and preferences - NEW
+      { 
+        pattern: /\b(yo|nosotros)\s+(prefiero|preferimos|elijo|elegimos|decido|decidimos)\b/gi, 
+        replacement: () => getRandomVariation([
+          `En ${company} preferimos`,
+          `Preferimos`,
+          `En ${company} optamos por`,
+          `Desde ${company} elegimos`,
+          `En ${company} decidimos`
+        ])
+      },
+      
+      // Problem identification - ENHANCED
+      { 
+        pattern: /\b(yo|nosotros)\s+(veo|vemos|encuentro|encontramos)\s+(problemas?|dificultades?|desafíos?)\b/gi, 
+        replacement: () => getRandomVariation([
+          `En ${company} identificamos desafíos`,
+          `Desde ${company} observamos oportunidades de mejora`,
+          `En ${company} hemos detectado áreas de mejora`,
+          `En ${company} encontramos oportunidades de optimización`
+        ])
+      }
+    ];
+    
+    return enhancedTransformations;
+  };
+  
+  const getRandomVariation = (variations) => {
+    return variations[Math.floor(Math.random() * variations.length)];
+  };
+  
+  // ENHANCED TRANSFORMATION FUNCTION - MUCH MORE AGGRESSIVE RETAILER PERSPECTIVE
+  const transformToProfessional = (text, speaker, company) => {
+    // Only transform interviewee responses (Speaker_1)
+    if (speaker !== 'Speaker_1') {
+      return text.replace(/\s+/g, ' ').trim();
+    }
 
+    let result = text;
+
+    // Phase 1: ULTRA-AGGRESSIVE CLEANUP (Enhanced)
+    const fillerPatterns = [
+      /\b(ok|okey|okay|bueno|este|pues|eh|ah|um|mmm|hmm|ajá|sí\s*,?\s*)\b/gi,
+      /\b(o\s+sea|como\s+te\s+digo|sabes\s+qué|la\s+verdad|al\s+final|es\s+más)\b/gi,
+      /\b(entonces|pero\s+bueno|y\s+bueno|y\s+este|y\s+pues)\b/gi,
+      /\b(no\s+sé|qué\s+sé\s+yo|digamos|como\s+que|tipo)\b/gi,
+      /\b(ora\s+ora|más\s+más|son\s+son|es\s+es|hay\s+hay|que\s+que|y\s+y)\b/gi,
+      /\b(ehhh+|ahhh+|ummm+|yyyy+|este\s+este|bueno\s+bueno)\b/gi,
+      /[,\s]*\?[,\s]*$/gi, // Remove trailing question marks
+      /^[,\s]*sí[,\s]*/gi, // Remove leading "Sí"
+      /[,\s]*y\s*,?\s*y\s*,?\s*y\s*[^a-zA-Z]/gi, // Remove "y, y, y" patterns
+      /\s*,\s*,\s*/g, // Remove double commas
+      /\s+/g // Multiple spaces to single space
+    ];
+
+    fillerPatterns.forEach(pattern => {
+      result = result.replace(pattern, ' ');
+    });
+
+    // Phase 2: COMPREHENSIVE RETAILER PERSPECTIVE CONVERSION
+    // Apply the enhanced transformation patterns
+    const enhancedPatterns = enhanceRetailerPerspectiveTransformations([], company);
+    
+    enhancedPatterns.forEach(({ pattern, replacement }) => {
+      result = result.replace(pattern, replacement);
+    });
+
+    // Phase 3: ADDITIONAL AGGRESSIVE FIRST-PERSON ELIMINATION
+    // Catch any remaining first-person patterns
+    const additionalFirstPersonPatterns = [
+      { pattern: /\byo\s+/gi, replacement: `En ${company} ` },
+      { pattern: /\bmí\s+/gi, replacement: `${company} ` },
+      { pattern: /\bmío\s+/gi, replacement: `de ${company} ` },
+      { pattern: /\bmía\s+/gi, replacement: `de ${company} ` },
+      { pattern: /\bmis\s+/gi, replacement: `nuestros ` },
+      { pattern: /\bnosotros\s+/gi, replacement: `En ${company} ` },
+      { pattern: /\bnuestro\s+/gi, replacement: `el ` },
+      { pattern: /\bnuestra\s+/gi, replacement: `la ` },
+      { pattern: /\bnuestros\s+/gi, replacement: `los ` },
+      { pattern: /\bnuestras\s+/gi, replacement: `las ` }
+    ];
+
+    additionalFirstPersonPatterns.forEach(({ pattern, replacement }) => {
+      result = result.replace(pattern, replacement);
+    });
+
+    // Phase 4: BUSINESS LANGUAGE ENHANCEMENT
+    const businessUpgrades = [
+      { pattern: /\bbueno\b/gi, replacement: 'satisfactorio' },
+      { pattern: /\bmuy\s+bueno\b/gi, replacement: 'excelente' },
+      { pattern: /\bproblemas?\b/gi, replacement: 'oportunidades de mejora' },
+      { pattern: /\bfunciona\s+bien\b/gi, replacement: 'opera eficientemente' },
+      { pattern: /\bse\s+lleva\s+bien\b/gi, replacement: 'mantiene una relación profesional positiva' },
+      { pattern: /\bvendedores?\b/gi, replacement: 'equipo comercial' },
+      { pattern: /\bempleados?\b/gi, replacement: 'colaboradores' },
+      { pattern: /\bclientes?\b/gi, replacement: 'socios comerciales' },
+      { pattern: /\bcomprar\b/gi, replacement: 'adquirir' },
+      { pattern: /\bnegociar\b/gi, replacement: 'establecer acuerdos comerciales' },
+      { pattern: /\bdinero\b/gi, replacement: 'inversión' },
+      { pattern: /\bcaro\b/gi, replacement: 'de alto valor' },
+      { pattern: /\bmanejar\b/gi, replacement: 'gestionar' },
+      { pattern: /\bcontrolar\b/gi, replacement: 'supervisar' }
+    ];
+
+    businessUpgrades.forEach(({ pattern, replacement }) => {
+      result = result.replace(pattern, replacement);
+    });
+
+    // Phase 5: SENTENCE STRUCTURE IMPROVEMENT
+    result = result.replace(/\s*,\s*\./g, '.'); // Fix comma-period
+    result = result.replace(/\.\s*,/g, '.'); // Fix period-comma
+    result = result.replace(/\s+/g, ' '); // Multiple spaces
+    result = result.trim();
+
+    // Phase 6: CAPITALIZATION AND FINAL POLISH
+    if (result.length > 0) {
+      result = result.charAt(0).toUpperCase() + result.slice(1);
+    }
+    
+    // Ensure proper sentence ending
+    if (result && !result.match(/[.!?]$/)) {
+      result += '.';
+    }
+
+    return result;
+  };
+  
   // Download CSV (UNCHANGED)
   const downloadCsv = () => {
     const blob = new Blob([csvContent], { type: 'text/csv' });
