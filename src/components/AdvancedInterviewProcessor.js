@@ -890,103 +890,143 @@ const AdvancedInterviewProcessor = () => {
       }
     }
     
-    // PHASE 1: AGGRESSIVE CLEANUP - Remove all fillers and artifacts
-    const aggressiveCleanupPatterns = [
-      // Remove all filler words and sounds
-      /\b(eh|ah|um|mm|hmm|este|esto|pues|bueno|o sea|como que|digamos|verdad|no sé|sabes|entonces|así|como|tipo|okey|ok)\b/gi,
+    // PHASE 1: ULTRA-AGGRESSIVE CLEANUP - Remove ALL fillers and artifacts
+    const ultraAggressiveCleanupPatterns = [
+      // Remove ALL filler words and sounds (expanded list)
+      /\b(eh|ah|um|mm|mmm|mmmm|hmm|este|esto|pues|bueno|o sea|como que|digamos|verdad|no sé|sabes|entonces|así|como|tipo|okey|ok|sí|bueno)\b/gi,
       // Remove extended sounds and hesitations
-      /\b(ehhh|ahhh|ummm|mmmm|eeee|aaaa|yyyy|siii|nooo|hastaaa|queee)\b/gi,
-      // Remove repetitive words completely
-      /\b(y y|que que|es es|la la|el el|de de|en en|con con|por por|para para|se se|me me|te te|son son|hay hay)\b/gi,
+      /\b(ehhh|ahhh|ummm|mmmm|eeee|aaaa|yyyy|siii|nooo|hastaaa|queee|ahoraaa)\b/gi,
+      // Remove ALL repetitive words completely
+      /\b(y y|que que|es es|la la|el el|de de|en en|con con|por por|para para|se se|me me|te te|son son|hay hay|ahora ahora|han han)\b/gi,
       // Remove incomplete thoughts and trailing words
-      /\b(o sea que|es decir que|como te digo|como te comento|la verdad es que|al final|es más|por mencionar)\b/gi,
+      /\b(o sea que|es decir que|como te digo|como te comento|la verdad es que|al final|es más|por mencionar|¿verdad\?)\b/gi,
       // Remove question marks and incomplete sentences at the end
       /[,\s]*¿[^?]*\??\s*$/gi,
       /[,\s]*Y[,\s]*y[,\s]*y[^.]*$/gi,
       /[,\s]*-[^.]*$/gi,
+      /[,\s]*O[^.]*$/gi,
       // Remove multiple punctuation and spaces
       /\s*\.\.\.\s*/g,
       /\s*,\s*,\s*/g,
       /\s*;\s*;\s*/g,
       /\s{2,}/g,
-      // Remove trailing incomplete phrases
-      /[,\s]+(y|pero|que|cuando|donde|como)\s*$/gi
+      // Remove trailing incomplete phrases and conjunctions
+      /[,\s]+(y|pero|que|cuando|donde|como|entonces)\s*$/gi,
+      // Remove leading fillers at start of sentences
+      /^(ok|okey|bueno|este|pues|eh|ah|sí|entonces)[,\s]*/gi,
+      // Remove mid-sentence fillers
+      /[,\s]+(eh|ah|mm|mmm|este|pues|bueno|o sea|no sé)[,\s]*/gi,
+      // Remove redundant phrases
+      /\b(es más|al final|por mencionar|como te digo)\b[,\s]*/gi
     ];
     
-    aggressiveCleanupPatterns.forEach(pattern => {
+    ultraAggressiveCleanupPatterns.forEach(pattern => {
       transformed = transformed.replace(pattern, ' ');
     });
     
-    // PHASE 2: SENTENCE RESTRUCTURING - Break into logical segments
-    // Split by major connectors and restructure
+    // PHASE 1.5: STRUCTURAL FIXES - Fix specific problematic patterns
+    transformed = transformed
+      // Fix "es, es" and similar repetitions
+      .replace(/\bes,\s*es\b/gi, 'es')
+      .replace(/\bson,\s*son\b/gi, 'son')
+      .replace(/\bhay,\s*hay\b/gi, 'hay')
+      .replace(/\bahora,\s*ahora\b/gi, 'ahora')
+      // Fix "porque al final" patterns
+      .replace(/\bporque al final,?\s*/gi, 'porque ')
+      // Remove "no sé" completely
+      .replace(/\bno sé,?\s*/gi, ' ')
+      // Fix "hasta" extensions
+      .replace(/\bhastaaa?\b/gi, 'hasta')
+      // Clean up remaining artifacts
+      .replace(/,\s*,/g, ',')
+      .replace(/\s+/g, ' ')
+      .trim();
+    
+    // PHASE 2: ENHANCED SENTENCE RESTRUCTURING - Create clear, professional segments
+    // First, split by major sentence boundaries and clean each segment
     let sentences = transformed
       .split(/[.!?]+/)
       .map(s => s.trim())
-      .filter(s => s.length > 5);
+      .filter(s => s.length > 8); // Increased minimum length
     
-    // Process each sentence for clarity and structure
+    // Process each sentence for maximum clarity and professionalism
     sentences = sentences.map(sentence => {
       let processed = sentence;
       
-      // Remove leading conjunctions that don't make sense at sentence start
-      processed = processed.replace(/^(y|pero|entonces|así|como|que)\s+/gi, '');
+      // Remove leading conjunctions and fillers
+      processed = processed.replace(/^(y|pero|entonces|así|como|que|ahora|además)\s+/gi, '');
       
-      // Fix common structural issues
+      // Fix specific structural issues from your example
       processed = processed
-        // Fix "es, es" patterns
-        .replace(/\bes,\s*es\b/gi, 'es')
-        // Fix "porque al final" patterns
-        .replace(/\bporque al final,?\s*/gi, 'porque ')
-        // Fix "hay varios" to more professional language
-        .replace(/\bhay varios?\b/gi, 'existen múltiples')
-        // Fix "es bien complejo" to professional language
+        // Fix distribution language specifically
+        .replace(/\bhay varios distribuidores\b/gi, 'trabajan con múltiples distribuidores')
+        .replace(/\bhan salido distribuidores\b/gi, 'operan distribuidores')
+        .replace(/\bdentro del mismo país que van a distribuir\b/gi, 'en el mismo mercado que manejan diferentes productos')
+        .replace(/\blo distribuye uno, pero\b/gi, 'un distribuidor maneja algunos productos, mientras que')
+        .replace(/\blo va a distribuir otro\b/gi, 'otro distribuidor maneja productos diferentes')
+        
+        // Fix complexity language
         .replace(/\bes bien (complejo|difícil|complicado)\b/gi, 'resulta $1')
-        // Fix "poder trabajar así" patterns
-        .replace(/\bpoder trabajar así\b/gi, 'operar de esta manera')
+        .replace(/\bpoder trabajar así\b/gi, 'coordinar eficientemente')
+        .replace(/\bson complejos cuando son tantas cabecillas\b/gi, 'se complican con múltiples puntos de contacto')
+        .replace(/\bcon tanta persona que está llevando el catálogo\b/gi, 'cuando múltiples personas gestionan el portafolio')
+        
+        // Fix work relationship language
+        .replace(/\byo lo estoy trabajando\b/gi, 'trabajamos en esto')
+        .replace(/\blo trabajo muy bien con el equipo de\b/gi, 'mantenemos una excelente colaboración con')
+        .replace(/\bque ellos están empezando a regionalizarse\b/gi, 'que está implementando una estrategia de regionalización')
+        
         // Clean up remaining artifacts
         .replace(/,\s*,/g, ',')
         .replace(/\s+/g, ' ')
         .trim();
       
       return processed;
-    }).filter(s => s.length > 3);
+    }).filter(s => s.length > 5);
     
-    // PHASE 3: CONTENT RESTRUCTURING - Create logical flow
+    // PHASE 2.5: INTELLIGENT CONTENT RESTRUCTURING - Group related ideas
     let restructuredContent = [];
-    let currentTopic = '';
+    let currentContext = '';
     let supportingDetails = [];
     
     sentences.forEach(sentence => {
-      // Identify if this is a main topic or supporting detail
+      // Identify main business contexts
       if (sentence.toLowerCase().includes('en el caso de') || 
-          sentence.toLowerCase().includes('con ') && sentence.toLowerCase().includes(' trabajamos') ||
-          sentence.toLowerCase().includes('el problema es') ||
-          sentence.toLowerCase().includes('la situación es')) {
-        // This is a main topic
-        if (currentTopic && supportingDetails.length > 0) {
-          restructuredContent.push(currentTopic + '. ' + supportingDetails.join('. ') + '.');
+          sentence.toLowerCase().includes('trabajan con') ||
+          sentence.toLowerCase().includes('mantenemos') ||
+          sentence.toLowerCase().includes('resulta complejo') ||
+          sentence.toLowerCase().includes('presenta desafíos')) {
+        
+        // Save previous context if exists
+        if (currentContext && supportingDetails.length > 0) {
+          restructuredContent.push(currentContext + '. ' + supportingDetails.join('. '));
+        } else if (currentContext) {
+          restructuredContent.push(currentContext);
         }
-        currentTopic = sentence;
+        
+        // Start new context
+        currentContext = sentence;
         supportingDetails = [];
+        
       } else if (sentence.length > 10) {
-        // This is a supporting detail
+        // Add as supporting detail
         supportingDetails.push(sentence);
       }
     });
     
-    // Add the last topic and details
-    if (currentTopic) {
+    // Add final context
+    if (currentContext) {
       if (supportingDetails.length > 0) {
-        restructuredContent.push(currentTopic + '. ' + supportingDetails.join('. ') + '.');
+        restructuredContent.push(currentContext + '. ' + supportingDetails.join('. '));
       } else {
-        restructuredContent.push(currentTopic + '.');
+        restructuredContent.push(currentContext);
       }
     } else if (supportingDetails.length > 0) {
-      // If no clear topic, just join the details logically
-      restructuredContent.push(supportingDetails.join('. ') + '.');
+      // If no clear context, create one from the details
+      restructuredContent.push(supportingDetails.join('. '));
     }
     
-    transformed = restructuredContent.join(' ');
+    transformed = restructuredContent.join('. ');
     
     // PHASE 4: PROFESSIONAL LANGUAGE TRANSFORMATION + RETAILER PERSPECTIVE WITH NATURAL VARIATION
     const getRandomVariation = (alternatives) => {
