@@ -1,3 +1,5 @@
+import React, { useState, useRef, useEffect } from 'react';
+
 const AdvancedInterviewProcessor = () => {
   const [audioFile, setAudioFile] = useState(null);
   const [processing, setProcessing] = useState(false);
@@ -69,7 +71,7 @@ const AdvancedInterviewProcessor = () => {
   };
 
   // Load training data from localStorage
-  React.useEffect(() => {
+  useEffect(() => {
     const savedTrainingData = localStorage.getItem('mlTrainingData');
     if (savedTrainingData) {
       setTrainingData(JSON.parse(savedTrainingData));
