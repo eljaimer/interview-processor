@@ -108,7 +108,7 @@ const AdvancedInterviewProcessor = () => {
     return result;
   };
 
-  // Enhanced transformation function based on user corrections
+  // Enhanced transformation function based on user examples (flexible patterns)
   const transformToProfessional = (text, speaker, company = 'Walmart') => {
     if (!text || typeof text !== 'string') return '';
     
@@ -119,89 +119,97 @@ const AdvancedInterviewProcessor = () => {
 
     let transformed = text;
 
-    // PHASE 1: ULTRA-AGGRESSIVE FILLER REMOVAL (Based on user corrections)
+    // PHASE 1: ULTRA-AGGRESSIVE FILLER REMOVAL
     const fillerPatterns = [
-      // Basic fillers
+      // Basic fillers and hesitations
       /\b(ok|okey|bueno|sí|mmm|eh|este|pues|entonces|ora|ahora)\b/gi,
-      // Repetitive patterns (from user corrections)
+      // Repetitive patterns
       /\b(\w+),\s*\1\b/gi, // "es, es" -> "es"
       /\b(\w+)\s+\1\b/gi,  // "y y" -> "y"
-      // Hesitation patterns
-      /\b(no sé|o sea|como que|eso, eso|más o menos)\b/gi,
-      // Question tags
+      // Hesitation and uncertainty
+      /\b(no sé|o sea|como que|eso, eso|más o menos|la verdad|fíjese|digamos)\b/gi,
+      // Question tags and confirmations
       /\b¿verdad\?\s*/gi,
       /\b¿sí\?\s*/gi,
-      // Incomplete thoughts
-      /\b(que está como|queee está|hastaaa)\b/gi,
-      // Excessive spacing and punctuation
-      /\s*,\s*,\s*/g, // Multiple commas
-      /\s+/g, // Multiple spaces
-      /^\s*[,.\-]\s*/, // Leading punctuation
-      /\s*[,.\-]\s*$/ // Trailing punctuation
+      // Incomplete thoughts and elongated words
+      /\b(que está como|queee está|hastaaa|eeeh|emmm)\b/gi,
+      // Excessive punctuation and spacing
+      /\s*,\s*,\s*/g,
+      /\s+/g,
+      /^\s*[,.\-]\s*/,
+      /\s*[,.\-]\s*$/
     ];
 
     fillerPatterns.forEach(pattern => {
-      if (typeof pattern === 'object' && pattern.test) {
-        transformed = transformed.replace(pattern, ' ');
-      }
+      transformed = transformed.replace(pattern, ' ');
     });
 
-    // Clean up spacing
     transformed = transformed.replace(/\s+/g, ' ').trim();
 
-    // PHASE 2: TOPIC SEPARATION AND CONTEXT DETECTION (Based on user feedback)
-    // Detect when multiple topics are mixed and focus on primary topic
-    const topicMarkers = {
-      distribution: ['distribuidores', 'distribuir', 'distribución', 'cadena'],
-      partnerships: ['lactalis', 'american', 'equipo', 'colaboración'],
-      products: ['quesos', 'mozzarella', 'crema', 'productos'],
-      problems: ['complejo', 'problema', 'dificulta', 'oportunidad']
-    };
+    // PHASE 2: BUSINESS CONTEXT RECONSTRUCTION
+    // Generic patterns for professional business language
+    const businessReconstructionPatterns = [
+      // Distribution and supply chain complexity
+      {
+        pattern: /\bhay\s+varios?\s+(distribuidores?|proveedores?|jugadores?)/gi,
+        replacement: 'operan múltiples $1'
+      },
+      {
+        pattern: /\b(\w+)\s+lo\s+(distribuye|maneja|atiende)\s+uno.*?(\w+)\s+lo\s+(va\s+a\s+)?(distribuir|manejar|atender)\s+otro/gi,
+        replacement: '$1 está a cargo de un $2 y $3 está a cargo de otro'
+      },
+      // Complexity and challenges
+      {
+        pattern: /\bes\s+(bien\s+)?complejo\s+(poder\s+)?(trabajar|coordinar|manejar)/gi,
+        replacement: 'resulta complejo $3'
+      },
+      {
+        pattern: /\bson\s+complejos?\s+cuando\s+son\s+tantas?\s+(cabecillas?|personas?|puntos?)/gi,
+        replacement: 'se complican con múltiples puntos de contacto'
+      },
+      // Performance and relationships
+      {
+        pattern: /\b(trabajo|trabajamos)\s+(muy\s+)?bien\s+con\s+(\w+)/gi,
+        replacement: 'mantenemos una excelente colaboración con $3'
+      },
+      {
+        pattern: /\bno\s+tengo\s+(mayor\s+)?inconveniente\s+con\s+(\w+)/gi,
+        replacement: 'no hemos experimentado inconvenientes con $2'
+      },
+      // Opportunities and improvements
+      {
+        pattern: /\bhabía\s+(mucha\s+)?oportunidad\s+en\s+(esa\s+parte|ese\s+tema)/gi,
+        replacement: 'existían oportunidades de mejora en esa área'
+      },
+      {
+        pattern: /\bse\s+ha\s+visto\s+(bastante\s+)?mejor/gi,
+        replacement: 'hemos notado mejoras significativas'
+      }
+    ];
 
-    let primaryTopic = 'general';
-    let topicScores = {};
-
-    Object.entries(topicMarkers).forEach(([topic, markers]) => {
-      const score = markers.reduce((sum, marker) => 
-        sum + (transformed.toLowerCase().includes(marker) ? 1 : 0), 0);
-      topicScores[topic] = score;
+    businessReconstructionPatterns.forEach(({ pattern, replacement }) => {
+      transformed = transformed.replace(pattern, replacement);
     });
 
-    primaryTopic = Object.entries(topicScores)
-      .sort(([,a], [,b]) => b - a)[0][0];
-
-    // PHASE 3: SMART COMPANY PERSPECTIVE INTEGRATION (Natural, not forced)
+    // PHASE 3: COMPANY PERSPECTIVE INTEGRATION (Natural)
     const companyPerspectivePatterns = [
-      // First person to company (flexible patterns)
+      // First person to company perspective
       {
-        pattern: /\b(yo\s+(?:trabajo|manejo|busco|he\s+visto|estoy|siempre\s+he))\b/gi,
-        replacements: [
-          `En ${company}`,
-          `Nosotros en ${company}`,
-          `Aquí en ${company}`,
-          `Para nosotros en ${company}`,
-          `En ${company} siempre`
-        ]
+        pattern: /\b(yo\s+(?:trabajo|manejo|busco|veo|tengo|estoy|siempre\s+he))/gi,
+        replacements: [`En ${company}`, `Nosotros en ${company}`, `Aquí en ${company}`]
       },
-      // Work activities
       {
-        pattern: /\b(trabajo\s+(?:muy\s+)?bien\s+con)\b/gi,
-        replacements: [
-          'mantenemos una excelente colaboración con',
-          'trabajamos efectivamente con',
-          'tenemos una buena relación comercial con',
-          'colaboramos estrechamente con'
-        ]
+        pattern: /\b(nosotros\s+(?:trabajamos|manejamos|tenemos|estamos))/gi,
+        replacements: [`En ${company} $1`, `Nosotros en ${company} $1`]
       },
-      // Problem statements
+      // Possessive adjustments
       {
-        pattern: /\b(es\s+(?:bien\s+)?complejo)\b/gi,
-        replacements: [
-          'resulta complejo',
-          'presenta complejidad',
-          'genera desafíos operativos',
-          'requiere coordinación compleja'
-        ]
+        pattern: /\bmi\s+(caso|experiencia|parte)/gi,
+        replacement: 'nuestro $1'
+      },
+      {
+        pattern: /\bmis\s+(compañeros|productos|clientes)/gi,
+        replacement: 'nuestros $1'
       }
     ];
 
@@ -212,64 +220,52 @@ const AdvancedInterviewProcessor = () => {
       }
     });
 
-    // PHASE 4: CONTENT RECONSTRUCTION (Based on user examples)
-    const contentReconstructionPatterns = [
-      // Distribution complexity (from user corrections)
-      {
-        pattern: /\bhay\s+varios\s+distribuidores.*?dentro\s+del\s+mismo\s+país/gi,
-        replacement: 'operan múltiples distribuidores en el mismo país'
-      },
-      {
-        pattern: /\b(\w+)\s+lo\s+distribuye\s+uno.*?(\w+)\s+lo\s+va\s+a\s+distribuir\s+otro/gi,
-        replacement: 'diferentes categorías ($1) son manejadas por distribuidores distintos mientras que ($2) está a cargo de otro distribuidor'
-      },
-      // Coordination issues
-      {
-        pattern: /\bson\s+complejos\s+cuando\s+son\s+tantas\s+cabecillas/gi,
-        replacement: 'se complican con múltiples puntos de contacto'
-      },
-      // Geographic expansion
-      {
-        pattern: /\bestamos\s+en\s+(\w+),\s*(\w+).*?entrando\s+en\s+(\w+)\s+y\s+(\w+)/gi,
-        replacement: 'operamos en $1, $2 y estamos expandiéndonos hacia $3 y $4'
-      },
-      // Brand management
-      {
-        pattern: /\bno\s+poder\s+atender.*?una\s+marca\s+como\s+se\s+debe/gi,
-        replacement: 'se nos dificulta atender la marca adecuadamente'
-      }
+    // PHASE 4: PROFESSIONAL LANGUAGE ENHANCEMENT
+    const professionalUpgrades = [
+      // Business terminology
+      { from: /\bproblemas?\b/gi, to: 'desafíos' },
+      { from: /\bfunciona\s+bien\b/gi, to: 'opera eficientemente' },
+      { from: /\bmuy\s+bueno\b/gi, to: 'excelente' },
+      { from: /\bbien\b/gi, to: 'adecuadamente' },
+      { from: /\bmanejar\b/gi, to: 'gestionar' },
+      { from: /\bcontrolar\b/gi, to: 'supervisar' },
+      { from: /\bvendedores?\b/gi, to: 'equipo comercial' },
+      { from: /\bempleados?\b/gi, to: 'colaboradores' },
+      { from: /\bun\s+montón\b/gi, to: 'significativamente' },
+      { from: /\bbastante\b/gi, to: 'considerablemente' },
+      { from: /\bsuperbueno\b/gi, to: 'excelente' },
+      { from: /\bsuperreconocido\b/gi, to: 'ampliamente reconocido' },
+      // Quantity and measurement
+      { from: /\bmuchos?\b/gi, to: 'múltiples' },
+      { from: /\bvarios?\b/gi, to: 'diversos' },
+      { from: /\bun\s+poco\s+de\b/gi, to: 'cierto nivel de' }
     ];
 
-    contentReconstructionPatterns.forEach(({ pattern, replacement }) => {
-      transformed = transformed.replace(pattern, replacement);
+    professionalUpgrades.forEach(({ from, to }) => {
+      transformed = transformed.replace(from, to);
     });
 
-    // PHASE 5: PRODUCT CATEGORIZATION (Flexible)
-    const productCategorizationPattern = /\b([a-zA-Z]+\s+[a-zA-Z]+(?:\s+[a-zA-Z]+)?)\b/g;
-    const productKeywords = ['quesos', 'mozzarella', 'crema', 'productos', 'categorías'];
+    // PHASE 5: PRODUCT AND BRAND CATEGORIZATION
+    // Flexible product categorization (parentheses for specific products)
+    const productKeywords = ['quesos?', 'mozzarella', 'crema', 'productos?', 'categorías?', 'gomas?', 'cereales?'];
+    const productPattern = new RegExp(`\\b(${productKeywords.join('|')})\\s+([a-zA-Z]+(?:\\s+[a-zA-Z]+)?)\\b`, 'gi');
     
-    transformed = transformed.replace(productCategorizationPattern, (match) => {
-      if (productKeywords.some(keyword => match.toLowerCase().includes(keyword))) {
-        return `(${match})`;
+    transformed = transformed.replace(productPattern, (match, productType, descriptor) => {
+      // Only add parentheses if it's a specific product variant
+      if (descriptor && !['de', 'del', 'en', 'con', 'para', 'por'].includes(descriptor.toLowerCase())) {
+        return `${productType} (${descriptor})`;
       }
       return match;
     });
 
-    // PHASE 6: PROFESSIONAL LANGUAGE ENHANCEMENT
-    const professionalUpgrades = {
-      'problemas': 'desafíos',
-      'funciona bien': 'opera eficientemente',
-      'muy bueno': 'excelente',
-      'bien': 'adecuadamente',
-      'manejar': 'gestionar',
-      'controlar': 'supervisar',
-      'vendedores': 'equipo comercial',
-      'empleados': 'colaboradores'
-    };
-
-    Object.entries(professionalUpgrades).forEach(([original, professional]) => {
-      const regex = new RegExp(`\\b${original}\\b`, 'gi');
-      transformed = transformed.replace(regex, professional);
+    // PHASE 6: STRUCTURAL IMPROVEMENTS
+    // Add distributor context in parentheses when mentioned
+    const distributorPattern = /\b(\w+)\s+(?:que\s+es\s+el\s+distribuidor|distribuidor|a\s+través\s+de\s+(\w+))/gi;
+    transformed = transformed.replace(distributorPattern, (match, brand, distributor) => {
+      if (distributor) {
+        return `${brand} (${distributor})`;
+      }
+      return match;
     });
 
     // PHASE 7: FINAL CLEANUP AND VALIDATION
@@ -283,6 +279,12 @@ const AdvancedInterviewProcessor = () => {
     if (transformed && !transformed.match(/[.!?]$/)) {
       transformed += '.';
     }
+
+    // Remove any remaining double spaces or punctuation issues
+    transformed = transformed
+      .replace(/\s+/g, ' ')
+      .replace(/\.\s*\./g, '.')
+      .replace(/,\s*,/g, ',');
 
     return transformed;
   };
@@ -616,22 +618,22 @@ const AdvancedInterviewProcessor = () => {
       // Step 1: Upload and transcribe
       setProgress(10);
       const formData = new FormData();
-      formData.append('audio', audioFile);
-      formData.append('model', 'eleven_multilingual_v2');
+      formData.append('file', audioFile);
+      formData.append('model_id', 'eleven_multilingual_v2');
       formData.append('language', 'es');
       formData.append('response_format', 'verbose_json');
-      formData.append('timestamp_granularities[]', 'word');
 
       const transcriptionResponse = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
         method: 'POST',
         headers: {
-          'xi-api-key': apiKey
+          'xi-api-key': apiKey,
         },
         body: formData
       });
 
       if (!transcriptionResponse.ok) {
-        throw new Error('Transcription failed');
+        const errorData = await transcriptionResponse.json();
+        throw new Error(`ElevenLabs API error: ${transcriptionResponse.status} - ${JSON.stringify(errorData)}`);
       }
 
       const transcriptionData = await transcriptionResponse.json();
