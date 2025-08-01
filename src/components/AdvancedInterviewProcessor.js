@@ -615,6 +615,10 @@ const AdvancedInterviewProcessor = () => {
     try {
       console.log('🎙️ Starting enhanced audio processing...');
       
+      // Parse file information
+      const fileInfo = parseFilename(audioFile.name);
+      console.log('📋 Parsed file info:', fileInfo);
+      
       // Step 1: Upload and transcribe
       setProgress(10);
       const formData = new FormData();
@@ -681,11 +685,9 @@ const AdvancedInterviewProcessor = () => {
         throw new Error('No recognizable transcription data found in API response');
       }
 
-      console.log('📋 File info:', fileInfo);
-
       // Step 3: Create enhanced segments
       setProgress(40);
-      const segments = createSpeakerContinuousSegments(transcriptionData.words || []);
+      const segments = createSpeakerContinuousSegments(words);
       console.log(`📝 Created ${segments.length} enhanced segments`);
 
       setProgress(60);
