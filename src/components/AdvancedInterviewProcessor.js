@@ -619,7 +619,7 @@ const AdvancedInterviewProcessor = () => {
       setProgress(10);
       const formData = new FormData();
       formData.append('file', audioFile);
-      formData.append('model_id', 'eleven_multilingual_v2');
+      formData.append('model_id', 'scribe_v1');
       formData.append('language', 'es');
       formData.append('response_format', 'verbose_json');
 
