@@ -422,7 +422,7 @@ const AdvancedInterviewProcessor = () => {
       if (shouldBreak && segmentDuration >= MIN_SEGMENT_DURATION) {
         // Finalize current segment
         const finalSpeaker = getMostLikelySpeaker(currentSegment.words);
-        const segmentText = currentSegment.words.map(w => w.word).join(' ');
+        const segmentText = currentSegment.words.map(w => w.text).join(' ');
         
         console.log(`Segment ${segments.length + 1}: ${segmentDuration.toFixed(1)}s, ${currentSegment.words.length} words, Speaker: ${finalSpeaker}, Reason: ${breakReason}`);
         
@@ -453,7 +453,7 @@ const AdvancedInterviewProcessor = () => {
     // Add final segment
     if (currentSegment.words.length > 0) {
       const finalSpeaker = getMostLikelySpeaker(currentSegment.words);
-      const segmentText = currentSegment.words.map(w => w.word).join(' ');
+      const segmentText = currentSegment.words.map(w => w.text).join(' ');
       const segmentDuration = currentSegment.endTime - currentSegment.startTime;
       
       segments.push({
@@ -676,7 +676,7 @@ const AdvancedInterviewProcessor = () => {
         console.log('⚠️ Only plain text available, creating artificial segments');
         const textSegments = transcriptionData.text.split(/[.!?]+/).filter(s => s.trim());
         words = textSegments.map((text, index) => ({
-          word: text.trim(),
+          text: text.trim(),
           start: index * 5, // Artificial timing
           end: (index + 1) * 5,
           speaker_id: 'speaker_1'
