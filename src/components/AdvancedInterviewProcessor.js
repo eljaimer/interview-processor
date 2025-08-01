@@ -638,11 +638,49 @@ const AdvancedInterviewProcessor = () => {
 
       const transcriptionData = await transcriptionResponse.json();
       console.log('✅ Transcription completed');
+      console.log('📊 Full API Response:', transcriptionData);
+      console.log('📝 Response keys:', Object.keys(transcriptionData));
+      
+      // Check different possible response structures
+      if (transcriptionData.words) {
+        console.log('📄 Found words array:', transcriptionData.words.length, 'words');
+      }
+      if (transcriptionData.segments) {
+        console.log('📄 Found segments array:', transcriptionData.segments.length, 'segments');
+      }
+      if (transcriptionData.text) {
+        console.log('📄 Found text field:', transcriptionData.text.substring(0, 100) + '...');
+      }
       
       setProgress(30);
 
-      // Step 2: Parse filename
-      const fileInfo = parseFilename(audioFile.name);
+      // Handle different response formats
+      let words = [];
+      
+      if (transcriptionData.words && transcriptionData.words.length > 0) {
+        // Format 1: Direct words array
+        words = transcriptionData.words;
+        console.log('✅ Using words array format');
+      } else if (transcriptionData.segments && transcriptionData.segments.length > 0) {
+        // Format 2: Segments with words
+        words = transcriptionData.segments.flatMap(segment => 
+          segment.words || []
+        );
+        console.log('✅ Using segments format, extracted', words.length, 'words');
+      } else if (transcriptionData.text) {
+        // Format 3: Plain text - need to create artificial segments
+        console.log('⚠️ Only plain text available, creating artificial segments');
+        const textSegments = transcriptionData.text.split(/[.!?]+/).filter(s => s.trim());
+        words = textSegments.map((text, index) => ({
+          word: text.trim(),
+          start: index * 5, // Artificial timing
+          end: (index + 1) * 5,
+          speaker_id: 'speaker_1'
+        }));
+      } else {
+        throw new Error('No recognizable transcription data found in API response');
+      }
+
       console.log('📋 File info:', fileInfo);
 
       // Step 3: Create enhanced segments
